@@ -1,6 +1,11 @@
 Function Get-M365ServiceIssue {
     [CmdletBinding()]
     param (
+
+        [Parameter()]
+        [string]
+        $Id,
+
         [parameter()]
         [int]$PastDays,
 
@@ -11,14 +16,23 @@ Function Get-M365ServiceIssue {
         [ValidateSet('Resolved', 'Unresolved')]
         [string]$Status,
 
-        [Parameter()]
+        [parameter()]
         [ValidateSet('Advisory', 'Incident')]
         [string]
         $Classification,
 
-        [Parameter()]
+        [parameter()]
         [string[]]$Service
     )
+
+    # Initialize the filter (empty)
+    $filter = @()
+
+    # Terminate if the -Id parameter is used with other parameters.
+    if ($id -and ($PastDays -or $LastUpdatedTime -or $Status -or $Classification -or $Service)) {
+        Write-Error "The -Id parameter must be used alone."
+        return $null
+    }
 
     # Terminate if -LastUpdatedTime and -PastDays are both in use.
     if ($LastUpdatedTime -and $PastDays) {
@@ -26,8 +40,9 @@ Function Get-M365ServiceIssue {
         return $null
     }
 
-    # Initialize the filter (empty)
-    $filter = @()
+    if ($Id) {
+        $filter += "Id eq '$($Id)'"
+    }
 
     if ($PastDays) {
         $start_date = (([datetime]::Today).AddDays(-$PastDays)).ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -45,7 +60,6 @@ Function Get-M365ServiceIssue {
     switch ($Status) {
         Resolved { $filter += 'IsResolved eq true' }
         Unresolved { $filter += 'IsResolved eq false' }
-        Default {}
     }
 
     if ($Service) {
@@ -56,7 +70,6 @@ Function Get-M365ServiceIssue {
             if ($item -notin $valid_service_list) {
                 Write-Error "'$item' is not a valid service name."
                 $isValid = $false
-                # return $null
             }
             else {
                 $service_filter += "Service eq '$item'"
@@ -69,12 +82,14 @@ Function Get-M365ServiceIssue {
         $filter += "($($service_filter -join ' or '))"
     }
 
-    if ($filter) {
-        Write-Verbose ($filter -join ' and ')
-        $issue_collection = Get-MgServiceAnnouncementIssue -Filter ($filter -join ' and ') -All
-    }
-    else {
-        $issue_collection = Get-MgServiceAnnouncementIssue -All
+    switch ($true) {
+        { $filter } {
+            Write-Verbose ($filter -join ' and ')
+            $issue_collection = Get-MgServiceAnnouncementIssue -Filter ($filter -join ' and ') -All
+        }
+        { !$filter } {
+            $issue_collection = Get-MgServiceAnnouncementIssue -All
+        }
     }
 
     $issue_collection
