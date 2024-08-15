@@ -115,10 +115,13 @@ Function Get-M365ServiceIssue {
         $issue_collection | ForEach-Object {
             # Split the Status and convert to title case (ie. 'serviceDegradation' to 'Service Degradation')
             $_.Status = ($_.Status.substring(0, 1).toupper() + $_.Status.substring(1) -creplace '[^\p{Ll}\s]', ' $&').Trim()
+
             # Capitalize the first letter of the Origin (ie. 'microsoft' to 'Microsoft')
             $_.Origin = ($_.Origin.substring(0, 1).toupper() + $_.Origin.substring(1))
+
             # Capitalize the first letter of the Classification (ie. 'advisory' to 'Advisory')
             $_.Classification = ($_.Classification.substring(0, 1).toupper() + $_.Classification.substring(1))
+
             # Bring out the latest message from the Posts collection.
             $_.LastUpdateContent = $_.Posts[-1].Description.Content
         }
@@ -127,5 +130,6 @@ Function Get-M365ServiceIssue {
     }
     catch {
         Write-Error "Failed to retrieve service health messages. $_"
+        return $null
     }
 }
