@@ -1,7 +1,6 @@
-Function Get-M365ServiceIssue {
+Function Get-M365ServiceHealthIssue {
     [CmdletBinding()]
     param (
-
         [Parameter()]
         [ValidateNotNullOrEmpty()]
         [string]
@@ -42,7 +41,7 @@ Function Get-M365ServiceIssue {
         return $null
     }
 
-    # Terminate if -LastModifiedDateTime and -PastDays are both in use.
+    # Terminate if -LastModifiedDateTime and -PastDays are both used.
     if ($PSBoundParameters.ContainsKey('LastModifiedDateTime') -and $PSBoundParameters.ContainsKey('PastDays')) {
         Write-Error "The -LastModifiedDateTime and -PastDays parameters cannot be used together."
         return $null
@@ -80,6 +79,7 @@ Function Get-M365ServiceIssue {
     # Add Service filter
     if ($Service) {
         $isValid = $true
+        # Retrieve all valid service names list.
         $valid_service_list = @((Get-MgServiceAnnouncementHealthOverview -All | Sort-Object Service).Service)
         $service_filter = @()
         foreach ($item in $Service) {
@@ -92,6 +92,7 @@ Function Get-M365ServiceIssue {
             }
         }
         if (!$isValid) {
+            # Terminate if at least one of the service names is not valid.
             Write-Error "Accepted service names: $($valid_service_list -join ";")"
             return $null
         }
