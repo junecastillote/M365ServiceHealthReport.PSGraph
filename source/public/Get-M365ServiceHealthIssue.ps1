@@ -125,7 +125,6 @@ Function Get-M365ServiceHealthIssue {
         $issue_collection | Add-Member -MemberType NoteProperty -Name ReportGeneratedDate -Value $now.ToUniversalTime()
 
         # Return the results
-
         $issue_collection
     }
     catch {
