@@ -1,66 +1,59 @@
 Function Get-M365ServiceHealthIssue {
     [CmdletBinding()]
     param (
-        [Parameter()]
+        [Parameter(Mandatory, ParameterSetName = 'Id')]
         [ValidateNotNullOrEmpty()]
         [string]
         $Id,
 
-        [parameter()]
+        [Parameter(Mandatory, ParameterSetName = 'PastDays')]
         [ValidateRange(1, [int]::MaxValue)]
         [int]$PastDays,
 
-        [parameter()]
+        [Parameter(Mandatory, ParameterSetName = 'LastModifiedDateTime')]
         [datetime]$LastModifiedDateTime,
 
-        [Parameter()]
+        [Parameter(ParameterSetName = 'Default')]
+        [Parameter(ParameterSetName = 'PastDays')]
+        [Parameter(ParameterSetName = 'LastModifiedDateTime')]
         [bool]
         $IsResolved,
 
-        [parameter()]
+        [Parameter(ParameterSetName = 'Default')]
+        [Parameter(ParameterSetName = 'PastDays')]
+        [Parameter(ParameterSetName = 'LastModifiedDateTime')]
         [ValidateSet('Advisory', 'Incident')]
         [string]
         $Classification,
 
-        [parameter()]
+        [Parameter(ParameterSetName = 'Default')]
+        [Parameter(ParameterSetName = 'PastDays')]
+        [Parameter(ParameterSetName = 'LastModifiedDateTime')]
         [string[]]$Service
     )
 
+    $now = ([System.DateTime]::Now)
+
     # Initialize the filter (empty)
     $filter = @()
-
-    # Terminate if the -Id parameter is used with other parameters.
-    if ($PSBoundParameters.ContainsKey('Id') -and (
-            $PSBoundParameters.ContainsKey('PastDays') -or
-            $PSBoundParameters.ContainsKey('LastModifiedDateTime') -or
-            $PSBoundParameters.ContainsKey('Status') -or
-            $PSBoundParameters.ContainsKey('Classification') -or
-            $PSBoundParameters.ContainsKey('Service')
-        )) {
-        Write-Error "The -Id parameter must be used alone."
-        return $null
-    }
-
-    # Terminate if -LastModifiedDateTime and -PastDays are both used.
-    if ($PSBoundParameters.ContainsKey('LastModifiedDateTime') -and $PSBoundParameters.ContainsKey('PastDays')) {
-        Write-Error "The -LastModifiedDateTime and -PastDays parameters cannot be used together."
-        return $null
-    }
 
     # Add Id filter
     if ($PSBoundParameters.ContainsKey('Id')) {
         $filter += "Id eq '$($Id)'"
     }
 
+    $start_date = ([System.DateTime]::MinValue).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+
     # Add PastDays filter
     if ($PSBoundParameters.ContainsKey('PastDays')) {
-        $start_date = (([datetime]::Today).AddDays(-$PastDays)).ToString('yyyy-MM-ddTHH:mm:ssZ')
+        $start_date = (($now).AddDays(-$PastDays)).ToUniversalTime().ToString('yyyy-MM-ddT00:00:00Z')
         $filter += "LastModifiedDateTime ge $($start_date)"
     }
 
     # Add LastModifiedDateTime filter
     if ($PSBoundParameters.ContainsKey('LastModifiedDateTime')) {
-        $start_date = ($LastModifiedDateTime).ToString('yyyy-MM-ddTHH:mm:ssZ')
+        $start_date = ($LastModifiedDateTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+        $filter += "LastModifiedDateTime ge $($start_date)"
     }
 
     # Add Classification filter
@@ -126,7 +119,13 @@ Function Get-M365ServiceHealthIssue {
             # Bring out the latest message from the Posts collection.
             $_.LastUpdateContent = $_.Posts[-1].Description.Content
         }
+
+        $issue_collection | Add-Member -MemberType NoteProperty -Name OrganizationName -Value (Get-MgOrganization).DisplayName
+        $issue_collection | Add-Member -MemberType NoteProperty -Name ReportStartDate -Value (Get-Date $start_date).ToUniversalTime()
+        $issue_collection | Add-Member -MemberType NoteProperty -Name ReportGeneratedDate -Value $now.ToUniversalTime()
+
         # Return the results
+
         $issue_collection
     }
     catch {

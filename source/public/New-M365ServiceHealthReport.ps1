@@ -3,107 +3,134 @@ Function New-M365ServiceHealthReport {
     param (
         [Parameter(Mandatory,
             ValueFromPipeline)]
+        [ValidateNotNullOrEmpty()]
         $InputObject,
 
         [Parameter(Mandatory)]
         [string]
-        $OutputDirectory,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string]
-        $OrganizationName
+        $OutputDirectory
     )
 
-    if (@($InputObject)[0].psobject.TypeNames[0] -notlike "*Microsoft.Graph.PowerShell.Models.MicrosoftGraphServiceHealthIssue") {
-        Write-Error "The input object's PsTypeName does not match [Microsoft.Graph.PowerShell.Models.MicrosoftGraphServiceHealthIssue]"
-        return $null
-    }
+    begin {
+        $moduleInfo = Get-Module $($MyInvocation.MyCommand.ModuleName)
 
-    if (@($InputObject).Count -lt 1) {
-        Write-Error "The input object is empty."
-        return $null
-    }
-
-    if (!($PSBoundParameters.ContainsKey('OrganizationName'))) {
-        $OrganizationName = (Get-MgOrganization).DisplayName
-    }
-
-    $moduleInfo = Get-Module $($MyInvocation.MyCommand.ModuleName)
-
-    if (!(Test-Path -Path $OutputDirectory)) {
-        try {
-            $null = New-Item -ItemType Directory -Path $OutputDirectory -Force -ErrorAction Stop
-            $null = New-Item -ItemType File -Path "$($OutputDirectory)\run_history.csv" -Force -ErrorAction Stop
+        if (!(Test-Path -Path $OutputDirectory)) {
+            try {
+                $null = New-Item -ItemType Directory -Path $OutputDirectory -Force -ErrorAction Stop
+                $null = New-Item -ItemType File -Path "$($OutputDirectory)\run_history.csv" -Force -ErrorAction Stop
+            }
+            catch {
+                Write-Error $_
+                Continue
+            }
         }
-        catch {
-            Write-Error $_
-            return $null
+
+        ## Get the CSS style
+        $css_string = Get-Content (($moduleInfo.ModuleBase.ToString()) + '\source\private\style.css') -Raw
+
+        $issue_collection = [System.Collections.Generic.list[System.Object]]@()
+    }
+    process {
+        foreach ($item in ($InputObject)) {
+            if ($item.psobject.TypeNames[0] -like "*Microsoft.Graph.PowerShell.Models.MicrosoftGraphServiceHealthIssue") {
+                $issue_collection.Add($item)
+            }
+            # $issue_collection.Add($item)
         }
     }
+    end {
+        if ($issue_collection.Count -gt 0) {
 
-    ## Get the CSS style
-    $css_string = Get-Content (($moduleInfo.ModuleBase.ToString()) + '\source\private\style.css') -Raw
+            $organizationName = $issue_collection[0].OrganizationName
+            $report_title = "[$($organizationName)] Microsoft 365 Service Health Report"
+            $report_file = "$($OutputDirectory)\service_health_report.html"
+            # $event_id_json_file = "$outputDir\consolidated_report.json"
+            $report_body = [System.Collections.Generic.List[string]]@()
+            $report_body.Add("<html><head><meta charset=""UTF-8""><title>$($report_title)</title>")
+            $report_body.Add('<style type="text/css">')
+            $report_body.Add($css_string)
+            $report_body.Add("</style>")
+            $report_body.Add("</head><body>")
+            $report_body.Add("<hr>")
+            $report_body.Add('<table id="section"><tr><th><a name="summary">Summary</a></th></tr></table>')
+            $report_body.Add("<hr>")
+            $report_body.Add('<table id="data">')
+            $report_body.Add("<tr><th>Workload</th><th>Event ID</th><th>Classification</th><th>Status</th><th>Title</th></tr>")
+            foreach ($item in $issue_collection) {
+                $report_body.Add("<tr><td>$($item.Service)</td>
+                    <td>" + '<a href="#' + $($item.ID) + '">' + "$($item.ID)</a></td>
+                    <td>$($item.Classification)</td>
+                    <td>$($item.Status)</td>
+                    <td>$($item.Title)</td></tr>")
+            }
+            $report_body.Add('</table>')
 
-    $report_title = "[$($organizationName)] Microsoft 365 Service Health Report"
-    $report_file = "$($OutputDirectory)\service_health_report.html"
-    # $event_id_json_file = "$outputDir\consolidated_report.json"
-    $report_body = [System.Collections.ArrayList]@()
-    $null = $report_body.Add("<html><head><meta charset=""UTF-8""><title>$($report_title)</title>")
-    $null = $report_body.Add('<style type="text/css">')
-    $null = $report_body.Add($css_string)
-    $null = $report_body.Add("</style>")
-    $null = $report_body.Add("</head><body>")
-    $null = $report_body.Add("<hr>")
-    $null = $report_body.Add('<table id="section"><tr><th><a name="summary">Summary</a></th></tr></table>')
-    $null = $report_body.Add("<hr>")
-    $null = $report_body.Add('<table id="data">')
-    $null = $report_body.Add("<tr><th>Workload</th><th>Event ID</th><th>Classification</th><th>Status</th><th>Title</th></tr>")
+            foreach ($item in $issue_collection) {
+                $report_body.Add("<hr>")
+                $report_body.Add('<table id="section"><tr><th><a name="' + $item.ID + '">' + $item.ID + '</a> | ' + $item.Service + ' | ' + $item.Title + '</th></tr></table>')
+                $report_body.Add("<hr>")
+                $report_body.Add('<table id="data">')
+                $report_body.Add('<tr><th>Status</th><td><b>' + $item.Status + '</b></td></tr>')
+                $report_body.Add('<tr><th>Organization</th><td>' + $organizationName + '</td></tr>')
+                $report_body.Add('<tr><th>Classification</th><td>' + $($item.Classification.substring(0, 1).toupper() + $item.Classification.substring(1)) + '</td></tr>')
+                $report_body.Add('<tr><th>User Impact</th><td>' + $item.ImpactDescription + '</td></tr>')
+                $report_body.Add('<tr><th>Last Updated</th><td>' + "{0:yyyy-MM-dd H:mm}" -f [datetime]$item.lastModifiedDateTime + '</td></tr>')
+                $report_body.Add('<tr><th>Start Time</th><td>' + "{0:yyyy-MM-dd H:mm}" -f [datetime]$item.startDateTime + '</td></tr>')
+                $report_body.Add('<tr><th>End Time</th><td>' + $(
+                        if ($item.endDateTime) {
+                            "{0:yyyy-MM-dd H:mm}" -f [datetime]$item.endDateTime
+                        }
+                    ) + '</td></tr>')
+                $latestMessage = ($item.posts[-1].description.content) -replace "`n", "<br />"
+                $report_body.Add('<tr><th>Latest Message</th><td>' + $latestMessage + '</td></tr>')
+                $report_body.Add('</table>')
+                # $report_body.Add('<div style="font-family: Tahoma;font-size: 10px"><a href = "#summary">(back to summary)</a></div>')
+                $report_body.Add('<div class="back-to-summary"><a href = "#summary">(back to summary)</a></div>')
+            }
+            $report_body.Add('<p><font size="2" face="Segoe UI Light"><br />')
+            $report_body.Add('<br />')
+            $report_body.Add('<a href="' + $moduleInfo.ProjectURI.ToString() + '" target="_blank">' + $moduleInfo.Name.ToString() + ' v' + $moduleInfo.Version.ToString() + ' </a><br></p>')
+            $report_body.Add('</body>')
+            $report_body.Add('</html>')
+            $report_body = $report_body -join "`n" # convert to multiline string
 
-    foreach ($item in $InputObject) {
-        $null = $report_body.Add("<tr><td>$($item.Service)</td>
-            <td>" + '<a href="#' + $($item.ID) + '">' + "$($item.ID)</a></td>
-            <td>$($item.Classification)</td>
-            <td>$($item.Status)</td>
-            <td>$($item.Title)</td></tr>")
+            # Write HTML report to file
+            $report_body | Out-File $report_file
+
+            # create the result object
+            $result = [PSCustomObject]([ordered]@{
+                    PSTypeName          = 'M365ServiceHealthReport'
+                    OrganizationName    = $organizationName
+                    ReportGeneratedDate = $issue_collection[0].ReportGeneratedDate
+                    ReportStartDate     = $issue_collection[0].ReportStartDate
+                    Issues              = $issue_collection
+                    Filename            = (Resolve-Path $report_file).Path
+                    Content             = $report_body
+                })
+
+            # Script method to get issue summary
+            $result | Add-Member -MemberType ScriptMethod -Name GetSummary -Value {
+                $([PSCustomObject]([ordered]@{
+                            Count      = $($this.Issues.Count)
+                            Resolved   = $(($this.Issues | Where-Object { $_.IsResolved }).Count)
+                            Unresolved = $(($this.Issues | Where-Object { !$_.IsResolved }).Count)
+                        }))
+            }
+
+            # Script method to get issue summary by service
+            $result | Add-Member -MemberType ScriptMethod -Name GetSummaryByService -Value {
+                $(foreach ($item in ($this.Issues | Group-Object Service | Sort-Object Count -Descending | Select-Object Count, Name)) {
+                        [PSCustomObject]([ordered]@{
+                                Service    = $item.Name
+                                Count      = $item.Count
+                                Resolved   = $(($this.Issues | Where-Object { $_.IsResolved -and $_.Service -eq $item.Name }).Count)
+                                Unresolved = $(($this.Issues | Where-Object { !$_.IsResolved -and $_.Service -eq $item.Name }).Count)
+                            })
+                    })
+            }
+
+            $result
+        }
+
     }
-    $null = $report_body.Add('</table>')
-
-    foreach ($item in $InputObject) {
-        $null = $report_body.Add("<hr>")
-        $null = $report_body.Add('<table id="section"><tr><th><a name="' + $item.ID + '">' + $item.ID + '</a> | ' + $item.Service + ' | ' + $item.Title + '</th></tr></table>')
-        $null = $report_body.Add("<hr>")
-        $null = $report_body.Add('<table id="data">')
-        $null = $report_body.Add('<tr><th>Status</th><td><b>' + $item.Status + '</b></td></tr>')
-        $null = $report_body.Add('<tr><th>Organization</th><td>' + $organizationName + '</td></tr>')
-        $null = $report_body.Add('<tr><th>Classification</th><td>' + $($item.Classification.substring(0, 1).toupper() + $item.Classification.substring(1)) + '</td></tr>')
-        $null = $report_body.Add('<tr><th>User Impact</th><td>' + $item.ImpactDescription + '</td></tr>')
-        $null = $report_body.Add('<tr><th>Last Updated</th><td>' + "{0:yyyy-MM-dd H:mm}" -f [datetime]$item.lastModifiedDateTime + '</td></tr>')
-        $null = $report_body.Add('<tr><th>Start Time</th><td>' + "{0:yyyy-MM-dd H:mm}" -f [datetime]$item.startDateTime + '</td></tr>')
-        $null = $report_body.Add('<tr><th>End Time</th><td>' + $(
-                if ($item.endDateTime) {
-                    "{0:yyyy-MM-dd H:mm}" -f [datetime]$item.endDateTime
-                }
-            ) + '</td></tr>')
-
-        $latestMessage = ($item.posts[-1].description.content) -replace "`n", "<br />"
-
-        $null = $report_body.Add('<tr><th>Latest Message</th><td>' + $latestMessage + '</td></tr>')
-        $null = $report_body.Add('</table>')
-        # $null = $report_body.Add('<div style="font-family: Tahoma;font-size: 10px"><a href = "#summary">(back to summary)</a></div>')
-        $null = $report_body.Add('<div class="back-to-summary"><a href = "#summary">(back to summary)</a></div>')
-    }
-    $null = $report_body.Add('<p><font size="2" face="Segoe UI Light"><br />')
-    $null = $report_body.Add('<br />')
-    $null = $report_body.Add('<a href="' + $moduleInfo.ProjectURI.ToString() + '" target="_blank">' + $moduleInfo.Name.ToString() + ' v' + $moduleInfo.Version.ToString() + ' </a><br></p>')
-    $null = $report_body.Add('</body>')
-    $null = $report_body.Add('</html>')
-    $report_body = $report_body -join "`n" # convert to multiline string
-    $report_body | Out-File $report_file
-
-
-    [PSCustomObject]@{
-        ReportFile = (Resolve-Path $report_file).Path
-    }
-
 }
