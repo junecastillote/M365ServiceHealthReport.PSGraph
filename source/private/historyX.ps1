@@ -23,7 +23,7 @@ Function GetLastSuccessfulRunTime {
 
     if ($RunHistoryFileName) {
         CreateHistoryFile
-        [datetime](@(Import-Csv $RunHistoryFileName | Where-Object { $_.Result -eq 'Ok' })[-1].RunTime)
+        Get-Date (@(Import-Csv $RunHistoryFileName | Where-Object { $_.Result -eq 'Ok' })[-1].RunTime)
     }
 }
 

@@ -7,11 +7,13 @@ Function Say {
         $Color = 'Cyan'
     )
 
-    if ($Color) {
-        $Host.UI.RawUI.ForegroundColor = $Color
+    process {
+        if ($Color) {
+            $Host.UI.RawUI.ForegroundColor = $Color
+        }
+        $Text | Out-Host
+        [Console]::ResetColor()
     }
-    $Text | Out-Host
-    [Console]::ResetColor()
 }
 
 Function SayError {
