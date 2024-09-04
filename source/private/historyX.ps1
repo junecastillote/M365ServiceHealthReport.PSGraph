@@ -17,13 +17,13 @@ Function CreateHistoryFile {
 
 Function GetLastSuccessfulRunTime {
     [CmdletBinding()]
+    [OutputType([datetime])]
     param (
 
     )
-
     if ($RunHistoryFileName) {
         CreateHistoryFile
-        Get-Date (@(Import-Csv $RunHistoryFileName | Where-Object { $_.Result -eq 'Ok' })[-1].RunTime)
+        [datetime](@(Import-Csv $RunHistoryFileName | Where-Object { $_.Result -eq 'Ok' })[-1].RunTime)
     }
 }
 
