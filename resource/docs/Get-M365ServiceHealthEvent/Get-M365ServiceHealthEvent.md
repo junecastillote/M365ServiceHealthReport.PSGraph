@@ -4,6 +4,14 @@ This function retrieves the service announcements from Microsoft Graph.
 
 - [Syntax](#syntax)
 - [Parameters](#parameters)
+  - [-Id](#-id)
+  - [-PastDays](#-pastdays)
+  - [-LastModifiedDateTime](#-lastmodifieddatetime)
+  - [-StartFromLastSuccessfulRun](#-startfromlastsuccessfulrun)
+  - [-RunHistoryFileName](#-runhistoryfilename)
+  - [-Status](#-status)
+  - [-Classification](#-classification)
+  - [-Service](#-service)
 - [Examples](#examples)
   - [Example 1 - Get all sservice health events](#example-1---get-all-sservice-health-events)
   - [Example 2 - Get a specific service health record ID](#example-2---get-a-specific-service-health-record-id)
@@ -27,7 +35,7 @@ Get-M365ServiceHealthEvent [-RunHistoryFileName <string>] [-Status <string>] [-C
 
 ## Parameters
 
-**-Id**
+### -Id
 
 This parameter the event ID of the service announcement to retrieve.
 
@@ -39,7 +47,7 @@ This parameter the event ID of the service announcement to retrieve.
 | Required:              | True   |
 | Accept pipeline input: | False  |
 
-**-PastDays**
+### -PastDays
 
 The period, in days, to retrieve the service announcements.
 
@@ -51,7 +59,7 @@ The period, in days, to retrieve the service announcements.
 | Required:              | True  |
 | Accept pipeline input: | False |
 
-**-LastModifiedDateTime**
+### -LastModifiedDateTime
 
 Sets the retrieval based on when the service health event was last modified or updated.
 
@@ -63,7 +71,7 @@ Sets the retrieval based on when the service health event was last modified or u
 | Required:              | True     |
 | Accept pipeline input: | False    |
 
-**-StartFromLastSuccessfulRun**
+### -StartFromLastSuccessfulRun
 
 Limits the service health event retrieval based on the last time the command ran successfully as logged in the history file.
 
@@ -75,7 +83,7 @@ Limits the service health event retrieval based on the last time the command ran
 | Required:              | False  |
 | Accept pipeline input: | False  |
 
-**-RunHistoryFileName**
+### -RunHistoryFileName
 
 Specifies the history file (CSV format) containing the successful and unsuccessful run times of the command. This parameter must be used together with the `-StartFromLastSuccessfulRun` parameter.
 
@@ -89,7 +97,7 @@ Specifies the history file (CSV format) containing the successful and unsuccessf
 | Required:              | False  |
 | Accept pipeline input: | False  |
 
-**-Status**
+### -Status
 
 Specifies whether to retrieve resolved or unresolved issues only. If not used, all event status will be retrieved.
 
@@ -106,7 +114,7 @@ Valid values:
 | Required:              | False  |
 | Accept pipeline input: | False  |
 
-**-Classification**
+### -Classification
 
 Filters the events based on classification. If not used, all event classifications will be included.
 
@@ -123,7 +131,7 @@ Valid values are:
 | Required:              | False  |
 | Accept pipeline input: | False  |
 
-**-Service**
+### -Service
 
 Filters the events based on service name, like, `Exchange Online', 'SharePoint Online`. If not used, all services will be included.
 
