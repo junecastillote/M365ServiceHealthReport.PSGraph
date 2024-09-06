@@ -42,8 +42,6 @@ This module (as of version 0.0.1), has three public functions called `Get-M365Se
 
 ![Public functions](resource/images/functions.png)
 
-[Get-M365ServiceHealthEvent](resource/docs/Get-M365ServiceHealthEvent/Get-M365ServiceHealthEvent.md)
-
-[ConvertTo-M365ServiceHealthReportObject](resource/docs/ConvertTo-M365ServiceHealthReportObject/ConvertTo-M365ServiceHealthReportObject.md)
-
-[Send-M365ServiceHealthReportEmail](resource/docs/Send-M365ServiceHealthReportEmail.md)
+- [Get-M365ServiceHealthEvent](resource/docs/Get-M365ServiceHealthEvent/Get-M365ServiceHealthEvent.md)
+- [ConvertTo-M365ServiceHealthReportObject](resource/docs/ConvertTo-M365ServiceHealthReportObject/ConvertTo-M365ServiceHealthReportObject.md)
+- [Send-M365ServiceHealthReportEmail](resource/docs/Send-M365ServiceHealthReportEmail/Send-M365ServiceHealthReportEmail.md)
