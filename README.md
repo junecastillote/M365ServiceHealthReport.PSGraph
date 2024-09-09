@@ -38,10 +38,10 @@ Whether you're using delegated or app-only authentication, the following Microso
 
 ## Functions
 
-This module (as of version 0.0.1), has three public functions called `Get-M365ServiceHealthEvent`, `ConvertTo-M365ServiceHealthReportObject`, `Send-M365ServiceHealthReportEmail`.
+This module (as of version 0.0.1), has three public functions called `Get-M365ServiceHealthEvent`, `ConvertTo-M365ServiceHealthReportObject`, `Send-M365ServiceHealthReportToEmail`.
 
 ![Public functions](resource/images/functions.png)
 
 - [Get-M365ServiceHealthEvent](resource/docs/Get-M365ServiceHealthEvent/Get-M365ServiceHealthEvent.md)
 - [ConvertTo-M365ServiceHealthReportObject](resource/docs/ConvertTo-M365ServiceHealthReportObject/ConvertTo-M365ServiceHealthReportObject.md)
-- [Send-M365ServiceHealthReportEmail](resource/docs/Send-M365ServiceHealthReportEmail/Send-M365ServiceHealthReportEmail.md)
+- [Send-M365ServiceHealthReportToEmail](resource/docs/Send-M365ServiceHealthReportToEmail/Send-M365ServiceHealthReportToEmail.md)

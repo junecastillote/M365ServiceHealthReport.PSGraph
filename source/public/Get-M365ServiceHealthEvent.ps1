@@ -1,5 +1,6 @@
 Function Get-M365ServiceHealthEvent {
     [CmdletBinding()]
+    [Alias('Get-M365ServiceHealthIssue', 'Get-M365ServiceHealthAnnouncement')]
     param (
         [Parameter(Mandatory, ParameterSetName = 'Id')]
         [ValidateNotNullOrEmpty()]

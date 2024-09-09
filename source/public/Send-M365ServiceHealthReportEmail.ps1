@@ -1,5 +1,6 @@
-Function Send-M365ServiceHealthReportEmail {
+Function Send-M365ServiceHealthReportToEmail {
     [CmdletBinding()]
+    [Alias('Send-M365ServiceHealthReportEmail')]
     param (
         [Parameter(Mandatory,
             ValueFromPipeline)]
@@ -20,6 +21,8 @@ Function Send-M365ServiceHealthReportEmail {
         [string[]]$MailBcc
     )
     begin {
+
+        $star_divider = ('*' * 70)
         Function ToEmailAddressHashTable {
             param(
                 [parameter()]
@@ -91,7 +94,7 @@ Function Send-M365ServiceHealthReportEmail {
             SayInfo "Sent!"
         }
         catch {
-            SayError $_
+            SayError "Failed to send email report. `n$star_divider`n$_$star_divider"
         }
     }
     end {

@@ -1,9 +1,9 @@
-# Send-M365ServiceHealthReportEmail
+# Send-M365ServiceHealthReportToEmail
 
 ## Syntax
 
 ```PowerShell
-Send-M365ServiceHealthReportEmail [-InputObject] <M365ServiceHealthReport> [-MailFrom] <string> [[-MailTo] <string[]>] [[-MailCc] <string[]>] [[-MailBcc] <string[]>] [<CommonParameters>]
+Send-M365ServiceHealthReportToEmail [-InputObject] <M365ServiceHealthReport> [-MailFrom] <string> [[-MailTo] <string[]>] [[-MailCc] <string[]>] [[-MailBcc] <string[]>] [<CommonParameters>]
 ```
 
 ## Parameters
@@ -76,7 +76,7 @@ The following example retrieves the service health events for the past 10 days a
 
 ```PowerShell
 $report = Get-M365ServiceHealthEvent -PastDays 10 -Service 'Exchange Online' | ConvertTo-M365ServiceHealthReportObject -OrganizationName PoshLab
-$report | Send-M365ServiceHealthReportEmail -MailFrom "sender@domain.com" -MailTo 'recipient1@domain.com','recipient2@domain.com'
+$report | Send-M365ServiceHealthReportToEmail -MailFrom "sender@domain.com" -MailTo 'recipient1@domain.com','recipient2@domain.com'
 ```
 
 ## Output Type
