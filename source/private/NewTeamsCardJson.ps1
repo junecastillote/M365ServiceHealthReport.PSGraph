@@ -88,6 +88,6 @@ Function NewTeamsCardJson {
         $teamsAdaptiveCard.attachments[0].content.body += (New-FactItem -InputObject $item)
     }
 
-    $teamsAdaptiveCard.attachments[0].content = $teamsAdaptiveCard.attachments[0].content | ConvertTo-Json -Depth 10
+    # $teamsAdaptiveCard.attachments[0].content = $teamsAdaptiveCard.attachments[0].content | ConvertTo-Json -Depth 10
     return ($teamsAdaptiveCard | ConvertTo-Json -Depth 10)
 }
