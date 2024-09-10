@@ -1,13 +1,7 @@
 {
     "type": "message",
-    "subject": null,
-    "body": {
-        "contentType": "html",
-        "content": "<attachment id=\"vCONTENTID\"></attachment>"
-    },
     "attachments": [
         {
-            "id": "vCONTENTID",
             "contentType": "application/vnd.microsoft.card.adaptive",
             "contentUrl": null,
             "content": {
