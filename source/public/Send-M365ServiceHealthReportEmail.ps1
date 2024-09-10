@@ -65,7 +65,7 @@ Function Send-M365ServiceHealthReportToEmail {
                 Subject                = $InputObject.Title
                 Body                   = @{
                     ContentType = "HTML"
-                    Content     = $InputObject.Content
+                    Content     = $InputObject.HtmlContent
                 }
                 InternetMessageHeaders = @(
                     @{
@@ -89,9 +89,7 @@ Function Send-M365ServiceHealthReportToEmail {
         }
 
         try {
-            SayInfo "Sending email report..."
             Send-MgUserMail @mail_params -UserId $MailFrom -ErrorAction Stop
-            SayInfo "Sent!"
         }
         catch {
             SayError "Failed to send email report. `n$star_divider`n$_$star_divider"
