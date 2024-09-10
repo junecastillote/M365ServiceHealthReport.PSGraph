@@ -8,15 +8,9 @@ Function Send-M365ServiceHealthReportToTeams {
         [PSTypeNameAttribute('M365ServiceHealthReport')]
         $InputObject,
 
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
+        [Parameter(Mandatory)]
         [string[]]
-        $ChannelId,
-
-        [Parameter()]
-        [ValidateNotNullOrEmpty()]
-        [string[]]
-        $ChatId
+        $TeamsWebhookUrl
     )
     begin {
         $star_divider = ('*' * 70)
@@ -25,28 +19,21 @@ Function Send-M365ServiceHealthReportToTeams {
 
         foreach ($item in $InputObject) {
 
-            if ($ChannelId) {
-                foreach ($id in $ChannelId) {
-                    $team_id = $id.Split('/')[0]
-                    $channel_id = $id.Split('/')[1]
+            # $item.TeamsCardContent
 
-                    try {
-                        New-MgTeamChannelMessage -TeamId $team_id -ChannelId $channel_id -BodyParameter $item.TeamsCardContent -ErrorAction Stop | Out-Null
-                    }
-                    catch {
-                        SayError "Failed channel message to [$($id)]. `n$star_divider`n$_$star_divider"
-                    }
+            foreach ($url in $TeamsWebhookUrl) {
+                SayInfo "Posting alert to Teams with URL [$($url)]"
+                $Params = @{
+                    "URI"         = $url
+                    "Method"      = 'POST'
+                    "Body"        = $item.TeamsCardContent
+                    "ContentType" = 'application/json'
                 }
-            }
-
-            if ($ChatId) {
-                foreach ($id in $ChatId) {
-                    try {
-                        New-MgChatMessage -ChatId $id -BodyParameter $item.TeamsCardContent -ErrorAction Stop | Out-Null
-                    }
-                    catch {
-                        SayError "Failed chat message to [$($id)]. `n$star_divider`n$_$star_divider"
-                    }
+                try {
+                    Invoke-RestMethod @Params -ErrorAction Stop
+                }
+                catch {
+                    SayError "Failed to post to channel. `n$star_divider`n$_$star_divider"
                 }
             }
         }
