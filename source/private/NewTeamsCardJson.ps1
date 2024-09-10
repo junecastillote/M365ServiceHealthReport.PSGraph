@@ -10,8 +10,6 @@ Function NewTeamsCardJson {
         [string]$Title
     )
 
-    $new_id = (New-Guid).Guid
-
     $moduleInfo = Get-Module $($MyInvocation.MyCommand.ModuleName)
 
     Function New-FactItem {
@@ -60,7 +58,7 @@ Function NewTeamsCardJson {
         return @($factHeader, $factSet)
     }
 
-    $teamsAdaptiveCard = ((Get-Content (($moduleInfo.ModuleBase.ToString()) + '\source\private\TeamsConsolidated.json') -Raw).Replace('vCONTENTID', $new_id) | ConvertFrom-Json)
+    $teamsAdaptiveCard = ((Get-Content (($moduleInfo.ModuleBase.ToString()) + '\source\private\TeamsConsolidated.json') -Raw) | ConvertFrom-Json)
 
     $teamsAdaptiveCard.attachments[0].content.body += ([pscustomobject][ordered]@{
             type  = "Container"
