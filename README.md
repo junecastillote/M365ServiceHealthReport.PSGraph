@@ -9,6 +9,7 @@ The module includes functions that retrieves service health events, generates a 
   - [Permissions](#permissions)
 - [How to Get the Module](#how-to-get-the-module)
 - [Functions](#functions)
+- [ANNEX](#annex)
 
 ## Requirements
 
@@ -45,3 +46,9 @@ This module (as of version 0.0.1), has three public functions called `Get-M365Se
 - [Get-M365ServiceHealthEvent](resource/docs/Get-M365ServiceHealthEvent/Get-M365ServiceHealthEvent.md)
 - [ConvertTo-M365ServiceHealthReportObject](resource/docs/ConvertTo-M365ServiceHealthReportObject/ConvertTo-M365ServiceHealthReportObject.md)
 - [Send-M365ServiceHealthReportToEmail](resource/docs/Send-M365ServiceHealthReportToEmail/Send-M365ServiceHealthReportToEmail.md)
+
+## ANNEX
+
+- [Registering Azure AD App for Automation][register-app]
+
+[register-app]: resource/docs/ANNEX/register-app/Registering-Azure-AD-App-for-Automation.md
