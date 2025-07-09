@@ -13,7 +13,7 @@ This function retrieves the service announcements from Microsoft Graph.
   - [-Classification](#-classification)
   - [-Service](#-service)
 - [Examples](#examples)
-  - [Example 1 - Get all sservice health events](#example-1---get-all-sservice-health-events)
+  - [Example 1 - Get all service health events](#example-1---get-all-service-health-events)
   - [Example 2 - Get a specific service health record ID](#example-2---get-a-specific-service-health-record-id)
   - [Example 3 - Get service health issues in the past 10 days and filter by service name](#example-3---get-service-health-issues-in-the-past-10-days-and-filter-by-service-name)
   - [Example 4 - Get all unresolved service health issues since the last successful run from history file](#example-4---get-all-unresolved-service-health-issues-since-the-last-successful-run-from-history-file)
@@ -190,7 +190,7 @@ Windows Autopatch
 
 ## Examples
 
-### Example 1 - Get all sservice health events
+### Example 1 - Get all service health events
 
 This example retrieves all available service health record without filter.
 
