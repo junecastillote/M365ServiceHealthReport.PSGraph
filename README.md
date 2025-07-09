@@ -128,5 +128,5 @@ $report | Send-M365ServiceHealthReportToEmail -MailFrom mailer365@poshlab.xyz -M
 
 ## ANNEX
 
-- [Registering Azure AD App for Automation](resource/docs/annex/register-app/Registering-Azure-AD-App-for-Automation.md)
+- [Registering Azure AD App for Automation](resource/docs/ANNEX/register-app/Registering-Azure-AD-App-for-Automation.md)
 - [How to Generate a Self-Signed Certificate for the App](resource/docs/ANNEX/new-cert/new-certificate.md)
