@@ -87,4 +87,16 @@ A client secret key serves as the password of the application and must be kept a
 
 1. Generate the certificate first if you don't have it yet. Refer to [How to Generate a Self-Signed Certificate for the App][new-cert]
 
-[new-cert]: ../new-cert/new-certificate.md
+    [new-cert]: ../new-cert/new-certificate.md
+
+2. Once you have the certificate ready, navigate to the **Certificates & secrets** page of the app. and click **Upload certificate**.
+
+    ![register-015](register-015.png)
+
+3. Browse and select the certificate file and click **Add**.
+
+    ![register-016](register-016.png)
+
+4. Confirm the certificate is now visible in the list.
+
+    ![register-017](register-017.png)

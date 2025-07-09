@@ -1,4 +1,4 @@
-Function Send-M365ServiceHealthReportToTeams {
+function Send-M365ServiceHealthReportToTeams {
     [CmdletBinding()]
     [Alias('Send-M365ServiceHealthReportTeams')]
     param (
