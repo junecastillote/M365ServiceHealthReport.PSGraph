@@ -10,6 +10,10 @@ This module is a wrapper of selected Microsoft Graph API PowerShell cmdlets that
 - [How to Get the Module](#how-to-get-the-module)
 - [Functions](#functions)
 - [Usage Flow](#usage-flow)
+- [Sample Run Script](#sample-run-script)
+- [Sample Report](#sample-report)
+  - [Email](#email)
+  - [Teams](#teams)
 - [ANNEX](#annex)
 
 ## Features
@@ -80,6 +84,47 @@ The commands included in this module can be used in this flow:
 1. Get the events based on your criteria (previous days, since last run, unresolved only, etc.) using the `Get-M365ServiceHealthEvent` command.
 2. Convert the events to a report to HTML or Teams Card or both, using the `ConvertTo-M365ServiceHealthReportObject` command.
 3. Send the report via email or Teams or both using the `Send-M365ServiceHealthReportToEmail` and `Send-M365ServiceHealthReportToTeams` commands.
+
+## Sample Run Script
+
+The script below demonstrates one possible way to run generate the Microsoft 365 Health Report.
+
+```PowerShell
+
+# Connect to Microsoft Graph using a custom Entra ID app with a certificate credential.
+Connect-MgGraph -TenantId poshlab.xyz -ClientId 3cf20865-66e7-42d5-83ca-0ba1fc7d6dbc -CertificateThumbprint 392010E284C3F9AB7A882DA50A31BCE4B2CBD3AE -NoWelcome
+
+# Import the module
+Import-Module .\M365ServiceHealthReport.PSGraph.psd1 -Force
+
+# Define one or more Teams webhook URL as needed.
+$teams_webhook_url = @(
+    'https://prod-41.southeastasia.logic.azure.com/workflows/a79afa1becd845d0adb8d20f7f16eeba/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=GzLlvK4jBB_XXXXXXXXXXXXXXXXXXX'
+)
+
+# Get the events from the last 24 hours
+$events = Get-M365ServiceHealthEvent -LastModifiedDateTime (Get-Date).AddHours(-24)
+
+# Convert the events to a report object. This report will include HTML and Teams Card content.
+$report = $events | ConvertTo-M365ServiceHealthReportObject -OrganizationName PoshLab
+
+# Send the report via Teams Webhook URL to trigger the Power Automate Flow
+$report | Send-M365ServiceHealthReportToTeams -TeamsWebhookUrl $teams_webhook_url
+
+# Send the report via email
+$report | Send-M365ServiceHealthReportToEmail -MailFrom mailer365@poshlab.xyz -MailTo june@poshlab.xyz
+
+```
+
+## Sample Report
+
+### Email
+
+![Email Report](resource/images/email-report.png)
+
+### Teams
+
+![teams Report](resource/images/Teams-Report.png)
 
 ## ANNEX
 
