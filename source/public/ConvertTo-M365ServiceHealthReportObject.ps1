@@ -39,21 +39,7 @@ function ConvertTo-M365ServiceHealthReportObject {
                 return ''
             }
 
-            return '{0:yyyy-MM-dd HH:mm}' -f [datetime]$DateTime
-        }
-
-        function ConvertTo-HtmlEncodedText {
-            [CmdletBinding()]
-            param(
-                [AllowNull()]
-                [string]$Text
-            )
-
-            if ([System.String]::IsNullOrEmpty($Text)) {
-                return ''
-            }
-
-            return [System.Net.WebUtility]::HtmlEncode($Text)
+            return '{0:MMM dd, yyyy, hh:mm tt} UTC' -f [datetime]$DateTime
         }
 
         function ConvertTo-HtmlEncodedText {
@@ -124,11 +110,82 @@ function ConvertTo-M365ServiceHealthReportObject {
 
             return $Text.Substring(0, 1).ToUpperInvariant() + $Text.Substring(1)
         }
-        #EndRegion Helper
 
-        # ====================================
-        # Main Module Start
-        # ====================================
+        function Get-ImageBase64String {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [ValidateNotNullOrEmpty()]
+                [string]$Path
+            )
+
+            if (!(Test-Path -Path $Path -PathType Leaf)) {
+                throw "Image file not found: $Path"
+            }
+
+            $bytes = [System.IO.File]::ReadAllBytes($Path)
+            return [System.Convert]::ToBase64String($bytes)
+        }
+
+        function Get-ServiceHealthClassificationIconSource {
+            [CmdletBinding()]
+            param(
+                [AllowNull()]
+                [string]$Classification,
+
+                [Parameter(Mandatory)]
+                [ValidateNotNullOrEmpty()]
+                [string]$YellowDotSource,
+
+                [Parameter(Mandatory)]
+                [ValidateNotNullOrEmpty()]
+                [string]$RedDotSource
+            )
+
+            if ([System.String]::IsNullOrWhiteSpace($Classification)) {
+                return $YellowDotSource
+            }
+
+            switch ($Classification.Trim().ToLowerInvariant()) {
+                'incident' { return $RedDotSource }
+                default { return $YellowDotSource }
+            }
+        }
+
+        function Get-ServiceHealthClassificationHtml {
+            [CmdletBinding()]
+            param(
+                [AllowNull()]
+                [string]$Classification,
+
+                [Parameter(Mandatory)]
+                [ValidateNotNullOrEmpty()]
+                [string]$YellowDotSource,
+
+                [Parameter(Mandatory)]
+                [ValidateNotNullOrEmpty()]
+                [string]$RedDotSource
+            )
+
+            $classificationText = Format-ServiceHealthText -Text $Classification
+            $encodedClassification = ConvertTo-HtmlEncodedText -Text $classificationText
+
+            $iconSource = Get-ServiceHealthClassificationIconSource `
+                -Classification $classificationText `
+                -YellowDotSource $YellowDotSource `
+                -RedDotSource $RedDotSource
+
+            $altText = if ($classificationText) {
+                ConvertTo-HtmlEncodedText -Text $classificationText
+            }
+            else {
+                'Classification'
+            }
+
+            return '<img src="' + $iconSource + '" ' + 'alt="' + $altText + '"' + ' width="12" height="12">&nbsp;' + $encodedClassification
+        }
+
+        #EndRegion Helper
 
         $moduleInfo = Get-Module $($MyInvocation.MyCommand.ModuleName)
 
@@ -151,6 +208,18 @@ function ConvertTo-M365ServiceHealthReportObject {
                 continue
             }
         }
+
+        # Load the DOT images
+        $privatePath = Join-Path -Path $moduleInfo.ModuleBase -ChildPath 'source\private'
+
+        $yellowDotPath = Join-Path -Path $privatePath -ChildPath 'yellow-dot.png'
+        $redDotPath = Join-Path -Path $privatePath -ChildPath 'red-dot.png'
+
+        $yellowDotBase64 = Get-ImageBase64String -Path $yellowDotPath
+        $redDotBase64 = Get-ImageBase64String -Path $redDotPath
+
+        $yellowDotDataUri = 'data:image/png;base64,' + $yellowDotBase64
+        $redDotDataUri = 'data:image/png;base64,' + $redDotBase64
 
         ## Get the CSS style
         $css_string = Get-Content (($moduleInfo.ModuleBase.ToString()) + '\source\private\style.css') -Raw
@@ -175,48 +244,182 @@ function ConvertTo-M365ServiceHealthReportObject {
         if ($issue_collection.Count -gt 0) {
             if ($Format -eq 'Html' -or !$Format) {
                 $html_content = [System.Collections.Generic.List[string]]@()
-                $html_content.Add("<html><head><meta charset=""UTF-8""><title>$($report_title)</title>")
+
+                $encodedReportTitle = ConvertTo-HtmlEncodedText -Text $report_title
+                $encodedOrganizationName = ConvertTo-HtmlEncodedText -Text $OrganizationName
+
+                $totalIssues = $issue_collection.Count
+                $resolvedIssues = ($issue_collection | Where-Object { $_.IsResolved }).Count
+                $activeIssues = ($issue_collection | Where-Object { !$_.IsResolved }).Count
+
+                $reportGeneratedDate = Format-ServiceHealthDate -DateTime $issue_collection[0].ReportGeneratedDate
+
+
+                if ($issue_collection[0].ReportStartDate -ne ([System.DateTime]::MinValue).ToUniversalTime()) {
+                    $reportStartDate = Format-ServiceHealthDate -DateTime $issue_collection[0].ReportStartDate
+                }
+
+                $html_content.Add('<html><head><meta charset="UTF-8"><title>' + $encodedReportTitle + '</title>')
                 $html_content.Add('<style type="text/css">')
                 $html_content.Add($css_string)
-                $html_content.Add("</style>")
-                $html_content.Add("</head><body>")
-                $html_content.Add("<hr>")
-                $html_content.Add('<table id="section"><tr><th><a name="summary">Summary</a></th></tr></table>')
-                $html_content.Add("<hr>")
+                $html_content.Add('</style>')
+                $html_content.Add('</head><body>')
 
-                # START Create Summary table
-                $html_content.Add('<table id="data">')
-                $html_content.Add("<tr><th>Event ID</th><th>Classification</th><th>Status</th><th>Title</th></tr>")
+                $html_content.Add(
+                    '<table class="report-header" width="100%" cellpadding="0" cellspacing="0" border="0">' +
+                    '<tr>' +
+                    '<td>' +
+                    '<div class="report-header-title">' + ($encodedReportTitle.Replace("[$($OrganizationName)] ", '')) + '</div>' +
+                    '<div class="report-header-meta">' +
+                    'Organization: ' + $encodedOrganizationName + '<br />' +
+                    'Generated: ' + $reportGeneratedDate + '<br />' +
+                    $(if ($reportStartDate) { 'Report Start: ' + $reportStartDate }) +
+                    '</div>' +
+                    '<div class="report-header-summary">' +
+                    '<strong>Total Events:</strong> ' + $totalIssues +
+                    ' &nbsp;|&nbsp; <strong>Active:</strong> ' + $activeIssues +
+                    ' &nbsp;|&nbsp; <strong>Resolved:</strong> ' + $resolvedIssues +
+                    '</div>' +
+                    '</td>' +
+                    '</tr>' +
+                    '</table>'
+                )
 
-                $itemGroup = $issue_collection | Group-Object Service | Sort-Object Count, Service -Descending
+                $html_content.Add('<hr>')
+                $html_content.Add('<table class="section-table" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th><a id="summary" name="summary">Summary</a></th></tr></table>')
+                $html_content.Add('<hr>')
+
+                $html_content.Add('<table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0">')
+
+                $html_content.Add(
+                    '<tr>' +
+                    '<tr>' +
+                    '<th style="background-color:#00B388;color:#FFFFFF;border:1px solid #DDDDDD;padding:7px 8px;text-align:left;">Event ID</th>' +
+                    '<th style="background-color:#00B388;color:#FFFFFF;border:1px solid #DDDDDD;padding:7px 8px;text-align:left;">Classification</th>' +
+                    '<th style="background-color:#00B388;color:#FFFFFF;border:1px solid #DDDDDD;padding:7px 8px;text-align:left;">Status</th>' +
+                    '<th style="background-color:#00B388;color:#FFFFFF;border:1px solid #DDDDDD;padding:7px 8px;text-align:left;white-space:nowrap;">Last Updated</th>' +
+                    '<th style="background-color:#00B388;color:#FFFFFF;border:1px solid #DDDDDD;padding:7px 8px;text-align:left;">Title</th>' +
+                    '</tr>'
+                )
+
+                $itemGroup = $issue_collection |
+                Group-Object Service |
+                Sort-Object @{ Expression = 'Count'; Descending = $true }, @{ Expression = 'Name'; Ascending = $true }
+
                 foreach ($group in $itemGroup) {
-                    $html_content.Add("<tr><td " + 'colspan="4" style=background-color:#EDEDED;font-weight:bold;padding:6px;' + ">$($group.Name) ($($group.Count))</td></tr>")
-                    foreach ($item in $issue_collection | Where-Object { $_.Service -eq $group.Name }) {
-                        $html_content.Add('<tr><td ' + 'style="text-align: right;">&nbsp;&nbsp;&#8227;' + '<a href="#' + $($item.ID) + '">' + "$($item.ID)</a></td>
-                            <td>$($item.Classification)</td>
-                            <td>$($item.Status)</td>
-                            <td>$($item.Title)</td></tr>")
+
+                    $serviceName = ConvertTo-HtmlEncodedText -Text $group.Name
+
+                    $html_content.Add(
+                        '<tr class="group-row">' +
+                        '<td colspan="5" style="background-color:#EDEDED;color:#242424;font-weight:bold;padding:7px 8px;border:1px solid #DDDDDD;">' +
+                        $serviceName + ' (' + $group.Count + ')' +
+                        '</td>' +
+                        '</tr>'
+                    )
+
+                    foreach ($item in ($issue_collection | Where-Object { $_.Service -eq $group.Name } | Sort-Object LastModifiedDateTime -Descending)) {
+                        $anchorId = ConvertTo-HtmlAnchorId -Value $item.Id
+                        $eventId = ConvertTo-HtmlEncodedText -Text $item.Id
+                        $classification = Get-ServiceHealthClassificationHtml `
+                            -Classification $item.Classification `
+                            -YellowDotSource $yellowDotDataUri `
+                            -RedDotSource $redDotDataUri
+                        $status = ConvertTo-HtmlEncodedText -Text $item.Status
+                        $lastUpdated = ConvertTo-HtmlEncodedText -Text (Format-ServiceHealthDate -DateTime $item.LastModifiedDateTime)
+                        $title = ConvertTo-HtmlEncodedText -Text $item.Title
+
+                        $statusColor = if ($item.IsResolved) {
+                            '#107C10'
+                        }
+                        else {
+                            '#D13438'
+                        }
+ 
+                        $statusCellStyle = @(
+                            'border-top:1px solid #DDDDDD'
+                            'border-right:1px solid #DDDDDD'
+                            'border-bottom:1px solid #DDDDDD'
+                            'border-left:6px solid ' + $statusColor
+                            'padding:7px 8px'
+                        ) -join ';'
+
+                        $html_content.Add(
+                            '<tr>' +
+                            '<td style="text-align:left;white-space:nowrap;border:1px solid #DDDDDD;padding:5px 8px;">&nbsp;&nbsp;&#8227;<a href="#' + $anchorId + '">' + $eventId + '</a></td>' +
+                            '<td style="border:1px solid #DDDDDD;padding:7px 8px;">' + $classification + '</td>' +
+                            '<td style="' + $statusCellStyle + '">' + $status + '</td>' +
+                            '<td style="border:1px solid #DDDDDD;padding:7px 8px;white-space:nowrap;">' + $lastUpdated + '</td>' +
+                            '<td style="border:1px solid #DDDDDD;padding:7px 8px;">' + $title + '</td>' +
+                            '</tr>'
+                        )
                     }
                 }
                 $html_content.Add('</table>')
-                # END Create Summary table
 
                 foreach ($item in $issue_collection) {
-                    $html_content.Add("<hr>")
-                    $html_content.Add('<table id="section"><tr><th><a name="' + $item.ID + '">' + $item.ID + '</a> | ' + $item.Service + ' | ' + $item.Title + '</th></tr></table>')
-                    $html_content.Add("<hr>")
-                    $html_content.Add('<table id="data">')
-                    $html_content.Add('<tr><th>Status</th><td><b>' + $item.Status + '</b></td></tr>')
-                    # $html_content.Add('<tr><th>Organization</th><td>' + $OrganizationName + '</td></tr>')
-                    $html_content.Add('<tr><th>Classification</th><td>' + $($item.Classification.substring(0, 1).toupper() + $item.Classification.substring(1)) + '</td></tr>')
-                    $html_content.Add('<tr><th>User Impact</th><td>' + $item.ImpactDescription + '</td></tr>')
-                    # $html_content.Add('<tr><th>Last Updated</th><td>' + "{0:yyyy-MM-dd H:mm}" -f [datetime]$item.lastModifiedDateTime + '</td></tr>')
-                    # $html_content.Add('<tr><th>Start Time</th><td>' + "{0:yyyy-MM-dd H:mm}" -f [datetime]$item.startDateTime + '</td></tr>')
-                    # $html_content.Add('<tr><th>End Time</th><td>' + $(
-                    #         if ($item.endDateTime) {
-                    #             "{0:yyyy-MM-dd H:mm}" -f [datetime]$item.endDateTime
-                    #         }
-                    #     ) + '</td></tr>')
+                    # foreach ($item in ($issue_collection | Sort-Object LastModifiedDateTime -Descending)) {
+                    $anchorId = ConvertTo-HtmlAnchorId -Value $item.Id
+                    $eventId = ConvertTo-HtmlEncodedText -Text $item.Id
+                    $service = ConvertTo-HtmlEncodedText -Text $item.Service
+                    $title = ConvertTo-HtmlEncodedText -Text $item.Title
+                    $status = ConvertTo-HtmlEncodedText -Text $item.Status
+                    $html_content.Add('<hr>')
+                    $leftColor = if ($item.IsResolved) {
+                        '#107C10'
+                    }
+                    else {
+                        '#D13438'
+                    }
+                    $anchorId = ConvertTo-HtmlAnchorId -Value $item.Id
+                    $eventId = ConvertTo-HtmlEncodedText -Text $item.Id
+                    $service = ConvertTo-HtmlEncodedText -Text $item.Service
+                    $title = ConvertTo-HtmlEncodedText -Text $item.Title
+                    $status = ConvertTo-HtmlEncodedText -Text $item.Status
+                    $html_content.Add(
+                        '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:none;">' +
+                        '<tr>' +
+                        '<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:1px solid #DDDDDD;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">' +
+                        '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">' +
+                        '<tr>' +
+                        '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;color:#666666;padding:0 0 4px 0;mso-line-height-rule:exactly;">' +
+                        $service +
+                        '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                        '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:18px;line-height:22px;font-weight:bold;color:#242424;padding:0 0 6px 0;mso-line-height-rule:exactly;">' +
+                        '<a id="' + $anchorId + '" name="' + $anchorId + '">' + $eventId + '</a>' +
+                        '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                        '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;font-weight:bold;color:#8A5A00;padding:0 0 8px 0;mso-line-height-rule:exactly;">' +
+                        $status +
+                        '</td>' +
+                        '</tr>' +
+                        '<tr>' +
+                        '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:14px;line-height:18px;color:#242424;padding:0;mso-line-height-rule:exactly;">' +
+                        $title +
+                        '</td>' +
+                        '</tr>' +
+                        '</table>' +
+                        '</td>' +
+                        '</tr>' +
+                        '</table>'
+                    )
+
+                    $html_content.Add('<hr>')
+
+                    $html_content.Add('<table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0">')
+
+                    $status = ConvertTo-HtmlEncodedText -Text $item.Status
+                    $classification = Get-ServiceHealthClassificationHtml `
+                        -Classification $item.Classification `
+                        -YellowDotSource $yellowDotDataUri `
+                        -RedDotSource $redDotDataUri
+                    $impactDescription = ConvertTo-HtmlEncodedText -Text $item.ImpactDescription
+
+                    $html_content.Add('<tr><th>Classification</th><td>' + $classification + '</td></tr>')
+                    $html_content.Add('<tr><th>User Impact</th><td>' + $impactDescription + '</td></tr>')
                     $html_content.Add('<tr><th>Last Updated</th><td>' + (Format-ServiceHealthDate -DateTime $item.LastModifiedDateTime) + '</td></tr>')
                     $html_content.Add('<tr><th>Start Time</th><td>' + (Format-ServiceHealthDate -DateTime $item.StartDateTime) + '</td></tr>')
                     $html_content.Add('<tr><th>End Time</th><td>' + $(
@@ -224,15 +427,20 @@ function ConvertTo-M365ServiceHealthReportObject {
                                 (Format-ServiceHealthDate -DateTime $item.EndDateTime)
                             }
                         ) + '</td></tr>')
-                    # $latestMessage = ($item.posts[-1].description.content) -replace "`n", "<br />"
                     $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $item
                     $html_content.Add('<tr><th>Latest Message</th><td>' + $latestMessage + '</td></tr>')
                     $html_content.Add('</table>')
                     $html_content.Add('<div class="back-to-summary"><a href = "#summary">back to summary</a></div>')
                 }
-                $html_content.Add('<p><font size="2" face="Segoe UI Light"><br />')
-                $html_content.Add('<br />')
-                $html_content.Add('<a href="' + $moduleInfo.ProjectURI.ToString() + '" target="_blank">' + $moduleInfo.Name.ToString() + ' v' + $moduleInfo.Version.ToString() + ' </a><br></p>')
+
+                $projectUri = ConvertTo-HtmlEncodedText -Text $moduleInfo.ProjectURI.ToString()
+                $moduleName = ConvertTo-HtmlEncodedText -Text $moduleInfo.Name.ToString()
+                $moduleVersion = ConvertTo-HtmlEncodedText -Text $moduleInfo.Version.ToString()
+
+                $html_content.Add('<p class="report-footer"><br />')
+                $html_content.Add('<a href="' + $projectUri + '">' + $moduleName + ' v' + $moduleVersion + '</a><br />')
+                $html_content.Add('</p>')
+
                 $html_content.Add('</body>')
                 $html_content.Add('</html>')
                 $html_content = $html_content -join "`n" # convert to multiline string
