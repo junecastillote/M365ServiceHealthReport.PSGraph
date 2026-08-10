@@ -1,41 +1,92 @@
-#section {
-    font-family: Aptos, Calibri, "Segoe UI";
-    width: fit-content;
+body {
+    margin: 0;
+    padding: 16px;
+    background-color: #ffffff;
+    color: #242424;
+    font-family: Aptos, Calibri, "Segoe UI", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.section-table {
+    font-family: Aptos, Calibri, "Segoe UI", Arial, sans-serif;
+    width: 100%;
     border-collapse: collapse;
 }
 
-#section th {
+.section-table th {
     font-size: 24px;
     text-align: left;
     padding-top: 5px;
     padding-bottom: 4px;
-    background-color: #fff;
-    color: #000;
+    background-color: #ffffff;
+    color: #242424;
 }
 
-#data {
-    font-family: Aptos, Calibri, "Segoe UI";
-    width: fit-content;
+.data-table {
+    font-family: Aptos, Calibri, "Segoe UI", Arial, sans-serif;
+    width: 100%;
     border-collapse: collapse;
     font-size: 15px;
-    padding-top: 5px;
-    padding-bottom: 4px;
     text-align: left;
+}
+
+.data-table td,
+.data-table th {
+    border: 1px solid #dddddd;
+    padding: 5px 8px;
     vertical-align: top;
 }
 
-#data td,
-#data th {
-    border: 1px solid #DDD;
-    padding: 3px 7px 2px 7px;
-}
-
-#data th {
-    background-color: #00B388;
-    color: #fff;
+.data-table th {
+    background-color: #EDEDED;
+    color: #242424;
+    text-align: left;
 }
 
 .back-to-summary {
-    font-family: Aptos, Calibri, "Segoe UI";
-    /* font-size: 10px; */
+    font-family: Aptos, Calibri, "Segoe UI", Arial, sans-serif;
+    font-size: 12px;
+    margin-top: 6px;
+    margin-bottom: 14px;
+}
+
+.report-footer {
+    font-family: Aptos, Calibri, "Segoe UI", Arial, sans-serif;
+    font-size: 12px;
+    color: #666666;
+}
+
+.report-header {
+    font-family: Aptos, Calibri, "Segoe UI", Arial, sans-serif;
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+}
+
+.report-header td {
+    background-color: #F8F8F8;
+    border: 1px solid #DDDDDD;
+    padding: 14px 16px;
+    color: #242424;
+}
+
+.report-header-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #242424;
+    margin-bottom: 6px;
+}
+
+.report-header-meta {
+    font-size: 13px;
+    color: #666666;
+    line-height: 1.45;
+}
+
+.report-header-summary {
+    font-size: 13px;
+    color: #242424;
+    line-height: 1.45;
+    margin-top: 8px;
 }
