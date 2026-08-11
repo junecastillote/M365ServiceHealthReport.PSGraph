@@ -28,163 +28,8 @@ function ConvertTo-M365ServiceHealthReportObject {
     begin {
 
         #Region Helper
-        function Format-ServiceHealthDate {
-            [CmdletBinding()]
-            param(
-                [AllowNull()]
-                $DateTime
-            )
 
-            if (!$DateTime) {
-                return ''
-            }
-
-            # return '{0:MMM dd, yyyy, hh:mm tt} UTC' -f [datetime]$DateTime
-            return '{0:MMM dd, yyyy, hh:mm tt (UTCzzzz)}' -f ([datetime]$DateTime).ToLocalTime()
-        }
-
-        function ConvertTo-HtmlEncodedText {
-            [CmdletBinding()]
-            param(
-                [AllowNull()]
-                [string]$Text
-            )
-
-            if ([system.string]::IsNullOrEmpty($Text)) {
-                return ''
-            }
-
-            return [System.Net.WebUtility]::HtmlEncode($Text)
-        }
-
-        function ConvertTo-HtmlAnchorId {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                [string]$Value
-            )
-
-            return ($Value -replace '[^a-zA-Z0-9_-]', '-')
-        }
-
-        function Get-ServiceHealthLatestMessageHtml {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [ValidateNotNull()]
-                $Issue
-            )
-
-            $latestPost = if ($Issue.Posts -and $Issue.Posts.Count -gt 0) {
-                $Issue.Posts[-1]
-            }
-
-            if (
-                !$latestPost -or
-                !$latestPost.Description -or
-                [System.String]::IsNullOrWhiteSpace($latestPost.Description.Content)
-            ) {
-                return 'No latest message available.'
-            }
-
-            $message = ConvertTo-HtmlEncodedText -Text $latestPost.Description.Content
-            $message = $message -replace "(\r\n|\n|\r)", '<br />'
-
-            return $message
-        }
-
-        function Format-ServiceHealthText {
-            [CmdletBinding()]
-            param(
-                [AllowNull()]
-                [string]$Text
-            )
-
-            if ([System.String]::IsNullOrWhiteSpace($Text)) {
-                return ''
-            }
-
-            if ($Text.Length -eq 1) {
-                return $Text.ToUpperInvariant()
-            }
-
-            return $Text.Substring(0, 1).ToUpperInvariant() + $Text.Substring(1)
-        }
-
-        function Get-ImageBase64String {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                [string]$Path
-            )
-
-            if (!(Test-Path -Path $Path -PathType Leaf)) {
-                throw "Image file not found: $Path"
-            }
-
-            $bytes = [System.IO.File]::ReadAllBytes($Path)
-            return [System.Convert]::ToBase64String($bytes)
-        }
-
-        function Get-ServiceHealthClassificationIconSource {
-            [CmdletBinding()]
-            param(
-                [AllowNull()]
-                [string]$Classification,
-
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                [string]$YellowDotSource,
-
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                [string]$RedDotSource
-            )
-
-            if ([System.String]::IsNullOrWhiteSpace($Classification)) {
-                return $YellowDotSource
-            }
-
-            switch ($Classification.Trim().ToLowerInvariant()) {
-                'incident' { return $RedDotSource }
-                default { return $YellowDotSource }
-            }
-        }
-
-        function Get-ServiceHealthClassificationHtml {
-            [CmdletBinding()]
-            param(
-                [AllowNull()]
-                [string]$Classification,
-
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                [string]$YellowDotSource,
-
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                [string]$RedDotSource
-            )
-
-            $classificationText = Format-ServiceHealthText -Text $Classification
-            $encodedClassification = ConvertTo-HtmlEncodedText -Text $classificationText
-
-            $iconSource = Get-ServiceHealthClassificationIconSource `
-                -Classification $classificationText `
-                -YellowDotSource $YellowDotSource `
-                -RedDotSource $RedDotSource
-
-            $altText = if ($classificationText) {
-                ConvertTo-HtmlEncodedText -Text $classificationText
-            }
-            else {
-                'Classification'
-            }
-
-            return '<img src="' + $iconSource + '" ' + 'alt="' + $altText + '"' + ' width="12" height="12">&nbsp;' + $encodedClassification
-        }
+        # Moved to module_root\source\private\report_object_helpers.ps1
 
         #EndRegion Helper
 
@@ -389,7 +234,7 @@ function ConvertTo-M365ServiceHealthReportObject {
                         '</tr>' +
                         '<tr>' +
                         '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:18px;line-height:22px;font-weight:bold;color:#242424;padding:0 0 6px 0;mso-line-height-rule:exactly;">' +
-                        '<a id="' + $anchorId + '" name="' + $anchorId + '">' + $eventId + '</a>' +
+                        '<a id="' + $anchorId + '" name="' + $anchorId + '" target="_blank" href="' + "https://admin.cloud.microsoft/?#/servicehealth/:/alerts/$($eventId)" + '">' + $eventId + '</a>' +
                         '</td>' +
                         '</tr>' +
                         '<tr>' +
@@ -419,9 +264,8 @@ function ConvertTo-M365ServiceHealthReportObject {
                         -RedDotSource $redDotDataUri
                     $impactDescription = ConvertTo-HtmlEncodedText -Text $item.ImpactDescription
 
-                    $html_content.Add('<tr><th>Classification</th><td>' + $classification + '</td></tr>')
+                    $html_content.Add('<tr><th>Issue Type</th><td>' + $classification + '</td></tr>')
                     $html_content.Add('<tr><th>User Impact</th><td>' + $impactDescription + '</td></tr>')
-                    $html_content.Add('<tr><th>Last Updated</th><td>' + (Format-ServiceHealthDate -DateTime $item.LastModifiedDateTime) + '</td></tr>')
                     $html_content.Add('<tr><th>Start Time</th><td>' + (Format-ServiceHealthDate -DateTime $item.StartDateTime) + '</td></tr>')
                     $html_content.Add('<tr><th>End Time</th><td>' + $(
                             if ($item.endDateTime) {
@@ -429,7 +273,8 @@ function ConvertTo-M365ServiceHealthReportObject {
                             }
                         ) + '</td></tr>')
                     $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $item
-                    $html_content.Add('<tr><th>Latest Message</th><td>' + $latestMessage + '</td></tr>')
+                    $html_content.Add('<tr><th>Last Updated</th><td>' + (Format-ServiceHealthDate -DateTime $item.LastModifiedDateTime) + '</td></tr>')
+                    $html_content.Add('<tr><th>Update</th><td>' + $latestMessage + '</td></tr>')
                     $html_content.Add('</table>')
                     $html_content.Add('<div class="back-to-summary"><a href = "#summary">back to summary</a></div>')
                 }

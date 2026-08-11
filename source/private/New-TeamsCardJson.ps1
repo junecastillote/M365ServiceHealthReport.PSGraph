@@ -1,6 +1,6 @@
 # This function creates a consolidated Teams report
 # using adaptive cards 1.4.
-Function New-TeamsCardJson {
+function New-TeamsCardJson {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
@@ -12,7 +12,7 @@ Function New-TeamsCardJson {
 
     $moduleInfo = Get-Module $($MyInvocation.MyCommand.ModuleName)
 
-    Function New-FactItem {
+    function New-FactItem {
         [CmdletBinding()]
         param (
             [Parameter(Mandatory)]
@@ -34,25 +34,36 @@ Function New-TeamsCardJson {
             )
         }
 
+        $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $InputObject
         $factSet = [pscustomobject][ordered]@{
             type      = 'FactSet'
             separator = $true
             facts     = @(
-                $([pscustomobject][ordered]@{Title = 'Impact'; Value = $($InputObject.impactDescription) } ),
-                $([pscustomobject][ordered]@{Title = 'Classification'; Value = ($InputObject.Classification) } ),
-                $([pscustomobject][ordered]@{Title = 'Status'; Value = ($InputObject.Status) } ),
-                $([pscustomobject][ordered]@{Title = 'Update'; Value = ("{0:MMMM dd, yyyy hh:mm tt}" -f [datetime]$InputObject.lastModifiedDateTime) }),
-                $([pscustomobject][ordered]@{Title = 'Start'; Value = ("{0:MMMM dd, yyyy hh:mm tt}" -f [datetime]$InputObject.startDateTime) }),
-                $([pscustomobject][ordered]@{Title = 'End'; Value = $(
-                            if ($InputObject.endDateTime) {
-                                 ("{0:MMMM dd, yyyy hh:mm tt}" -f [datetime]$InputObject.startDateTime)
+                $([pscustomobject][ordered]@{title ='Issue type'; value = ($InputObject.Classification) } ),
+                $([pscustomobject][ordered]@{title ='Status'; value = $(
+                            if ($InputObject.IsResolved) {
+                                "Resolved | $($InputObject.Status)"
                             }
                             else {
-                                $null
+                                "Active | $($InputObject.Status)"
+                            }
+                        )
+                    } ),
+                $([pscustomobject][ordered]@{title ='User impact'; value = $($InputObject.impactDescription) } ),
+                $([pscustomobject][ordered]@{title ='Start time'; value = ("{0:MMMM dd, yyyy hh:mm tt}" -f [datetime]$InputObject.startDateTime) }),
+                $([pscustomobject][ordered]@{title ='End time'; value = $(
+                            if ($InputObject.endDateTime) {
+                                ("{0:MMMM dd, yyyy hh:mm tt}" -f [datetime]$InputObject.startDateTime)
+                            }
+                            else {
+                                [System.String]::Empty
                             }
                         )
                     }
-                )
+                ),
+                $([pscustomobject][ordered]@{title ='Update time'; value = ("{0:MMMM dd, yyyy hh:mm tt}" -f [datetime]$InputObject.lastModifiedDateTime) }),
+                $([pscustomobject][ordered]@{title ='Update'; value = $latestMessage }),
+                $([pscustomobject][ordered]@{title ='Link'; value = "https://admin.cloud.microsoft/?#/servicehealth/:/alerts/$($InputObject.Id)" })
             )
         }
         return @($factHeader, $factSet)
