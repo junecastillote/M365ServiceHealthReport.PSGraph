@@ -39,7 +39,8 @@ function ConvertTo-M365ServiceHealthReportObject {
                 return ''
             }
 
-            return '{0:MMM dd, yyyy, hh:mm tt} UTC' -f [datetime]$DateTime
+            # return '{0:MMM dd, yyyy, hh:mm tt} UTC' -f [datetime]$DateTime
+            return '{0:MMM dd, yyyy, hh:mm tt (UTCzzzz)}' -f ([datetime]$DateTime).ToLocalTime()
         }
 
         function ConvertTo-HtmlEncodedText {
@@ -455,7 +456,7 @@ function ConvertTo-M365ServiceHealthReportObject {
 
             # Create Teams Card
             if ($Format -eq 'TeamsCard' -or !$Format) {
-                $teams_card_content = (NewTeamsCardJson -InputObject $issue_collection -Title $report_title)
+                $teams_card_content = (New-TeamsCardJson -InputObject $issue_collection -Title $report_title)
 
                 if ($TeamsCardFileName) {
                     $teams_card_report_file = (Resolve-Path $TeamsCardFileName).Path
