@@ -120,58 +120,6 @@ function ConvertTo-HtmlAnchorId {
     return ($Value -replace '[^a-zA-Z0-9_-]', '-')
 }
 
-# function Get-ServiceHealthLatestMessageHtml {
-#     [CmdletBinding()]
-#     param(
-#         [Parameter(Mandatory)]
-#         [ValidateNotNull()]
-#         $Issue
-#     )
-
-#     $latestPost = if ($Issue.Posts -and $Issue.Posts.Count -gt 0) {
-#         $Issue.Posts[-1]
-#     }
-
-#     if (
-#         !$latestPost -or
-#         !$latestPost.Description -or
-#         [System.String]::IsNullOrWhiteSpace($latestPost.Description.Content)
-#     ) {
-#         return 'No latest message available.'
-#     }
-
-#     $message = ConvertTo-HtmlEncodedText -Text $latestPost.Description.Content
-#     $message = $message -replace "(\r\n|\n|\r)", '<br />'
-
-#     return $message
-# }
-
-function Get-ServiceHealthLatestMessage {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [ValidateNotNull()]
-        $Issue
-    )
-
-    $latestPost = if ($Issue.Posts -and $Issue.Posts.Count -gt 0) {
-        $Issue.Posts[-1]
-    }
-
-    if (
-        !$latestPost -or
-        !$latestPost.Description -or
-        [System.String]::IsNullOrWhiteSpace($latestPost.Description.Content)
-    ) {
-        return 'No latest message available.'
-    }
-
-    $message = ConvertTo-HtmlEncodedText -Text $latestPost.Description.Content
-    # $message = $message -replace "(\r\n|\n|\r)", '<br />'
-
-    return $message
-}
-
 function Format-ServiceHealthText {
     [CmdletBinding()]
     param(
@@ -262,4 +210,28 @@ function Get-ServiceHealthClassificationHtml {
     }
 
     return '<img src="' + $iconSource + '" ' + 'alt="' + $altText + '"' + ' width="12" height="12">&nbsp;' + $encodedClassification
+}
+
+function Get-ServiceHealthPriority {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        $Issue
+    )
+
+    $classification = $Issue.Classification.ToLowerInvariant()
+
+    if (-not $Issue.IsResolved -and $classification -eq 'incident') {
+        return 1
+    }
+
+    if (-not $Issue.IsResolved -and $classification -eq 'advisory') {
+        return 2
+    }
+
+    if ($Issue.IsResolved -and $classification -eq 'incident') {
+        return 3
+    }
+
+    return 4
 }

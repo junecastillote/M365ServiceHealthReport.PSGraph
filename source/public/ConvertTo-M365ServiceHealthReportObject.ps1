@@ -299,14 +299,35 @@ function ConvertTo-M365ServiceHealthReportObject {
                 }
             }
 
-            # Create Teams Card
+            # Create Teams alert cards
             if ($Format -eq 'TeamsCard' -or !$Format) {
-                $teams_card_content = (New-TeamsCardJson -InputObject $issue_collection -Title $report_title)
+                $teams_card_content = [System.Collections.Generic.List[string]]@()
+
+                # foreach ($issue in ($issue_collection | Sort-Object LastModifiedDateTime -Descending)) {
+                foreach ($issue in (
+                        $issue_collection |
+                        Sort-Object `
+                        @{ Expression = { Get-ServiceHealthPriority $_ } ; Ascending = $true },
+                        @{ Expression = 'LastModifiedDateTime' ; Descending = $true }
+                    )) {
+                    $teams_card_content.Add(
+                        (New-ServiceHealthAlertCardJson `
+                            -Issue $issue `
+                            -OrganizationName $OrganizationName)
+                    )
+                }
 
                 if ($TeamsCardFileName) {
                     $teams_card_report_file = (Resolve-Path $TeamsCardFileName).Path
-                    $teams_card_content | Out-File $teams_card_report_file -Encoding utf8
-                    "JSON Report saved @ $($teams_card_report_file)" | SayInfo
+
+                    $teams_card_content |
+                    ForEach-Object {
+                        $_
+                        ''
+                    } |
+                    Out-File $teams_card_report_file -Encoding utf8
+
+                    "Teams alert card JSON saved @ $($teams_card_report_file)" | SayInfo
                 }
             }
 

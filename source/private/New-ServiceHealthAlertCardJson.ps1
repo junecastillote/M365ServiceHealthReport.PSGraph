@@ -1,30 +1,18 @@
-# This function creates a consolidated Teams report
+# This function creates a single Microsoft 365 Service Health alert card
 # using Adaptive Cards.
-function New-TeamsCardJson {
+function New-ServiceHealthAlertCardJson {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        $InputObject,
+        [ValidateNotNull()]
+        $Issue,
 
         [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$Title
+        [string]$OrganizationName
     )
 
     begin {
         $moduleInfo = Get-Module $($MyInvocation.MyCommand.ModuleName)
-
-        function ConvertTo-AdaptiveCardElementId {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                [string]$Value
-            )
-
-            return ($Value -replace '[^a-zA-Z0-9_-]', '-')
-        }
 
         function Format-ServiceHealthCardDate {
             [CmdletBinding()]
@@ -38,6 +26,20 @@ function New-TeamsCardJson {
             }
 
             return '{0:MMMM dd, yyyy hh:mm tt} UTC' -f [datetime]$DateTime
+        }
+
+        function Format-ServiceHealthDuration {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [timespan]$TimeSpan
+            )
+
+            if ($TimeSpan.TotalDays -ge 1) {
+                return '{0} days {1} hours' -f $TimeSpan.Days, $TimeSpan.Hours
+            }
+
+            return '{0} hours {1} minutes' -f $TimeSpan.Hours, $TimeSpan.Minutes
         }
 
         function Format-ServiceHealthText {
@@ -72,8 +74,6 @@ function New-TeamsCardJson {
             $normalizedText = $Text.Trim()
 
             $currentStatusPattern = '(?is)Current status:\s*(?<CurrentStatus>.*?)(?=\r?\n\s*\r?\n(?:Scope of impact:|Start time:|Root cause:|Next update by:|Title:|User impact:|More info:|Final status:|End time:|Next steps:)|\z)'
-            $nextUpdatePattern = '(?is)Next update by:\s*(?<NextUpdate>.*?)(?=\r?\n\s*\r?\n(?:Title:|User impact:|More info:|Current status:|Final status:|Scope of impact:|Start time:|Root cause:|End time:|Next steps:)|\z)'
-
             $finalStatusPattern = '(?is)Final status:\s*(?<FinalStatus>.*?)(?=\r?\n\s*\r?\n(?:Scope of impact:|Start time:|End time:|Root cause:|Next steps:|Next update by:|Title:|User impact:|More info:|Current status:)|\z)'
             $finalUpdatePattern = '(?im)^\s*This is the final update for the event\.\s*$'
 
@@ -83,22 +83,7 @@ function New-TeamsCardJson {
             )
 
             if ($currentStatusMatch.Success) {
-                $currentStatus = $currentStatusMatch.Groups['CurrentStatus'].Value.Trim()
-
-                $nextUpdateMatch = [System.Text.RegularExpressions.Regex]::Match(
-                    $normalizedText,
-                    $nextUpdatePattern
-                )
-
-                if ($nextUpdateMatch.Success) {
-                    $nextUpdate = $nextUpdateMatch.Groups['NextUpdate'].Value.Trim()
-
-                    if (![System.String]::IsNullOrWhiteSpace($nextUpdate)) {
-                        return $currentStatus + "`r`n`r`nNext update by: " + $nextUpdate
-                    }
-                }
-
-                return $currentStatus
+                return $currentStatusMatch.Groups['CurrentStatus'].Value.Trim()
             }
 
             $finalStatusMatch = [System.Text.RegularExpressions.Regex]::Match(
@@ -124,74 +109,91 @@ function New-TeamsCardJson {
             return $normalizedText
         }
 
-        function New-ServiceHealthCardHeader {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                [string]$Title,
-
-                [Parameter(Mandatory)]
-                $ReportGeneratedDate,
-
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                $Issues
-            )
-
-            $totalIssues = $Issues.Count
-            $resolvedIssues = ($Issues | Where-Object { $_.IsResolved }).Count
-            $activeIssues = ($Issues | Where-Object { !$_.IsResolved }).Count
-
-            $incidentCount = ($Issues | Where-Object { $_.Classification -eq 'Incident' }).Count
-            $advisoryCount = ($Issues | Where-Object { $_.Classification -eq 'Advisory' }).Count
-
-            [pscustomobject][ordered]@{
-                type  = 'Container'
-                style = 'emphasis'
-                bleed = $true
-                items = @(
-                    [pscustomobject][ordered]@{
-                        type                = 'TextBlock'
-                        wrap                = $true
-                        weight              = 'Bolder'
-                        text                = $Title
-                        size                = 'Large'
-                        horizontalAlignment = 'Center'
-                    },
-                    [pscustomobject][ordered]@{
-                        type                = 'TextBlock'
-                        wrap                = $true
-                        text                = (Get-Date ($ReportGeneratedDate.ToLocalTime()) -Format F)
-                        horizontalAlignment = 'Center'
-                        spacing             = 'Small'
-                    },
-                    [pscustomobject][ordered]@{
-                        type                = 'TextBlock'
-                        wrap                = $true
-                        text                = "Total Events: $totalIssues | Active: $activeIssues | Resolved: $resolvedIssues"
-                        horizontalAlignment = 'Center'
-                        spacing             = 'Small'
-                        isSubtle            = $true
-                    },
-                    [pscustomobject][ordered]@{
-                        type                = 'TextBlock'
-                        wrap                = $true
-                        text                = "Incidents: $incidentCount | Advisories: $advisoryCount"
-                        horizontalAlignment = 'Center'
-                        spacing             = 'None'
-                        isSubtle            = $true
-                    }
-                )
-            }
-        }
-
-        function New-ServiceHealthIssueHeader {
+        function Get-ServiceHealthLatestUpdateObject {
             [CmdletBinding()]
             param(
                 [Parameter(Mandatory)]
                 [ValidateNotNull()]
                 $Issue
+            )
+
+            $latestPost = if ($Issue.Posts -and $Issue.Posts.Count -gt 0) {
+                $Issue.Posts[-1]
+            }
+
+            if (
+                !$latestPost -or
+                !$latestPost.Description -or
+                [System.String]::IsNullOrWhiteSpace($latestPost.Description.Content)
+            ) {
+                return [pscustomobject][ordered]@{
+                    Update       = 'No latest update available.'
+                    NextUpdateBy = ''
+                }
+            }
+
+            $messageText = $latestPost.Description.Content.Trim()
+
+            $nextUpdateMatch = [System.Text.RegularExpressions.Regex]::Match(
+                $messageText,
+                '(?is)Next update by:\s*(?<NextUpdate>.*?)(?=\r?\n\s*\r?\n|\z)'
+            )
+
+            $nextUpdateBy = ''
+
+            if ($nextUpdateMatch.Success) {
+                $nextUpdateBy = $nextUpdateMatch.Groups['NextUpdate'].Value.Trim()
+            }
+
+            $updateText = Get-ServiceHealthPortalStyleUpdateText -Text $messageText
+
+            [pscustomobject][ordered]@{
+                Update       = $updateText
+                NextUpdateBy = $nextUpdateBy
+            }
+        }
+
+        function Get-ServiceHealthClassificationColor {
+            [CmdletBinding()]
+            param(
+                [AllowNull()]
+                [string]$Classification
+            )
+
+            if ([System.String]::IsNullOrWhiteSpace($Classification)) {
+                return 'Warning'
+            }
+
+            switch ($Classification.Trim().ToLowerInvariant()) {
+                'incident' { return 'Attention' }
+                default { return 'Warning' }
+            }
+        }
+
+        function Get-ServiceHealthContainerStyle {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [ValidateNotNull()]
+                $Issue
+            )
+
+            if ($Issue.IsResolved) {
+                return 'good'
+            }
+
+            return 'attention'
+        }
+
+        function New-ServiceHealthAlertHeader {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [ValidateNotNull()]
+                $Issue,
+
+                [Parameter(Mandatory)]
+                [string]$OrganizationName
             )
 
             $elementId = ConvertTo-AdaptiveCardElementId -Value $Issue.Id
@@ -200,9 +202,9 @@ function New-TeamsCardJson {
             $toggleDownId = 'toggle_' + $elementId + 'Down'
             $toggleUpId = 'toggle_' + $elementId + 'Up'
 
-            $classificationColor = Get-ServiceHealthClassificationColor -Classification $Issue.Classification
-            $containerStyle = Get-ServiceHealthHeaderStyle -Issue $Issue
             $classificationText = Format-ServiceHealthText -Text $Issue.Classification
+            $classificationColor = Get-ServiceHealthClassificationColor -Classification $Issue.Classification
+            $containerStyle = Get-ServiceHealthContainerStyle -Issue $Issue
 
             $resolutionState = if ($Issue.IsResolved) {
                 'Resolved'
@@ -241,14 +243,14 @@ function New-TeamsCardJson {
                                 spacing                  = 'ExtraSmall'
                                 items                    = @(
                                     [pscustomobject][ordered]@{
-                                        type    = 'TextBlock'
-                                        text    = $Issue.Service
-                                        wrap    = $true
-                                        size    = 'Default'
-                                        weight  = 'Bolder'
-                                        color   = 'Accent'
-                                        spacing = 'None'
-                                    },
+                                        type     = 'TextBlock'
+                                        text     = $OrganizationName + ' · ' + $Issue.Service
+                                        wrap     = $true
+                                        size     = 'Small'
+                                        weight   = 'Bolder'
+                                        isSubtle = $true
+                                        spacing  = 'None'
+                                    }
                                     [pscustomobject][ordered]@{
                                         type    = 'TextBlock'
                                         text    = $classificationText
@@ -351,7 +353,7 @@ function New-TeamsCardJson {
             }
         }
 
-        function Get-ServiceHealthLatestUpdateText {
+        function New-ServiceHealthAlertFactSet {
             [CmdletBinding()]
             param(
                 [Parameter(Mandatory)]
@@ -359,69 +361,10 @@ function New-TeamsCardJson {
                 $Issue
             )
 
-            $latestPost = if ($Issue.Posts -and $Issue.Posts.Count -gt 0) {
-                $Issue.Posts[-1]
-            }
-
-            if (
-                !$latestPost -or
-                !$latestPost.Description -or
-                [System.String]::IsNullOrWhiteSpace($latestPost.Description.Content)
-            ) {
-                return 'No latest update available.'
-            }
-
-            return Get-ServiceHealthPortalStyleUpdateText -Text $latestPost.Description.Content
-        }
-
-        function Get-ServiceHealthClassificationColor {
-            [CmdletBinding()]
-            param(
-                [AllowNull()]
-                [string]$Classification
-            )
-
-            if ([System.String]::IsNullOrWhiteSpace($Classification)) {
-                return 'Warning'
-            }
-
-            switch ($Classification.Trim().ToLowerInvariant()) {
-                'incident' { return 'Attention' }
-                default { return 'Warning' }
-            }
-        }
-
-        function Get-ServiceHealthHeaderStyle {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [ValidateNotNull()]
-                $Issue
-            )
-
-            if ($Issue.IsResolved) {
-                return 'good'
-            }
-
-            return 'attention'
-        }
-
-
-        function New-ServiceHealthIssueFactSet {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [ValidateNotNull()]
-                $Issue
-            )
-
+            $latestUpdateInfo = Get-ServiceHealthLatestUpdateObject -Issue $Issue
             $elementId = ConvertTo-AdaptiveCardElementId -Value $Issue.Id
             $detailsId = 'v' + $elementId
 
-            # $latestUpdate = Get-ServiceHealthLatestUpdateText -Issue $Issue
-            $latestUpdateInfo = Get-ServiceHealthLatestUpdateObject -Issue $Issue
-
-            # Incrimentally build the facts
             $facts = @(
                 [pscustomobject][ordered]@{
                     title = 'User impact'
@@ -433,7 +376,30 @@ function New-TeamsCardJson {
                 }
             )
 
-            # Add 'End time' only if it exists
+            # Calculate issue age
+            if ($Issue.IsResolved -and $Issue.EndDateTime) {
+
+                $duration = New-TimeSpan `
+                    -Start $Issue.StartDateTime `
+                    -End $Issue.EndDateTime
+
+                $facts += [pscustomobject][ordered]@{
+                    title = 'Duration'
+                    value = (Format-ServiceHealthDuration -TimeSpan $duration)
+                }
+            }
+            else {
+
+                $age = New-TimeSpan `
+                    -Start $Issue.StartDateTime `
+                    -End (Get-Date).ToUniversalTime()
+
+                $facts += [pscustomobject][ordered]@{
+                    title = 'Age'
+                    value = (Format-ServiceHealthDuration -TimeSpan $age)
+                }
+            }
+
             if ($Issue.EndDateTime) {
                 $facts += [pscustomobject][ordered]@{
                     title = 'End time'
@@ -441,13 +407,11 @@ function New-TeamsCardJson {
                 }
             }
 
-            # Add 'Latest update'
             $facts += [pscustomobject][ordered]@{
                 title = 'Latest update'
                 value = $latestUpdateInfo.Update
             }
 
-            # Add 'Next update by' is it exists
             if (![System.String]::IsNullOrWhiteSpace($latestUpdateInfo.NextUpdateBy)) {
                 $facts += [pscustomobject][ordered]@{
                     title = 'Next update by'
@@ -464,7 +428,7 @@ function New-TeamsCardJson {
             }
         }
 
-        function New-ServiceHealthIssueActionSet {
+        function New-ServiceHealthAlertActionSet {
             [CmdletBinding()]
             param(
                 [Parameter(Mandatory)]
@@ -472,9 +436,9 @@ function New-TeamsCardJson {
                 $Issue
             )
 
+            $adminCenterUrl = 'https://admin.cloud.microsoft/?#/servicehealth/:/alerts/' + $Issue.Id
             $elementId = ConvertTo-AdaptiveCardElementId -Value $Issue.Id
             $actionsId = 'a' + $elementId
-            $adminCenterUrl = 'https://admin.cloud.microsoft/?#/servicehealth/:/alerts/' + $Issue.Id
 
             [pscustomobject][ordered]@{
                 type      = 'ActionSet'
@@ -493,79 +457,15 @@ function New-TeamsCardJson {
             }
         }
 
-        function New-ServiceHealthServiceHeader {
+        function ConvertTo-AdaptiveCardElementId {
             [CmdletBinding()]
             param(
                 [Parameter(Mandatory)]
-                [string]$ServiceName,
-
-                [Parameter(Mandatory)]
-                [int]$Count
+                [ValidateNotNullOrEmpty()]
+                [string]$Value
             )
 
-            [pscustomobject][ordered]@{
-                type  = 'Container'
-                style = 'emphasis'
-                bleed = $true
-                items = @(
-                    [pscustomobject][ordered]@{
-                        type   = 'TextBlock'
-                        text   = "$ServiceName ($Count)"
-                        weight = 'Bolder'
-                        size   = 'Medium'
-                        wrap   = $true
-                    }
-                )
-            }
-        }
-
-        function Get-ServiceHealthLatestUpdateObject {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [ValidateNotNull()]
-                $Issue
-            )
-
-            $latestPost = if ($Issue.Posts -and $Issue.Posts.Count -gt 0) {
-                $Issue.Posts[-1]
-            }
-
-            if (
-                !$latestPost -or
-                !$latestPost.Description -or
-                [System.String]::IsNullOrWhiteSpace($latestPost.Description.Content)
-            ) {
-                return [pscustomobject]@{
-                    Update       = 'No latest update available.'
-                    NextUpdateBy = ''
-                }
-            }
-
-            $messageText = $latestPost.Description.Content.Trim()
-
-            $nextUpdateMatch = [System.Text.RegularExpressions.Regex]::Match(
-                $messageText,
-                '(?is)Next update by:\s*(?<NextUpdate>.*?)(?=\r?\n\s*\r?\n|\z)'
-            )
-
-            $nextUpdateBy = ''
-
-            if ($nextUpdateMatch.Success) {
-                $nextUpdateBy = $nextUpdateMatch.Groups['NextUpdate'].Value.Trim()
-            }
-
-            $updateText = Get-ServiceHealthPortalStyleUpdateText -Text $messageText
-
-            if ($nextUpdateBy) {
-                $updateText = $updateText -replace '(?is)\r?\n\r?\nNext update by:.*$', ''
-                $updateText = $updateText.Trim()
-            }
-
-            [pscustomobject]@{
-                Update       = $updateText
-                NextUpdateBy = $nextUpdateBy
-            }
+            return ($Value -replace '[^a-zA-Z0-9_-]', '-')
         }
     }
 
@@ -577,7 +477,6 @@ function New-TeamsCardJson {
         # Ensure the template body starts empty even if the JSON template file is later modified.
         $teamsAdaptiveCard.attachments[0].content.body = @()
 
-        # Icon requires Adaptive Card 1.5.
         $teamsAdaptiveCard.attachments[0].content.version = '1.5'
 
         if (!$teamsAdaptiveCard.attachments[0].content.msTeams) {
@@ -586,38 +485,9 @@ function New-TeamsCardJson {
                 })
         }
 
-        $teamsAdaptiveCard.attachments[0].content.body += New-ServiceHealthCardHeader `
-            -Title $Title `
-            -ReportGeneratedDate $InputObject[0].ReportGeneratedDate `
-            -Issues $InputObject
-
-        $itemGroups = $InputObject |
-        Group-Object Service |
-        Sort-Object Count, Name -Descending
-
-        foreach ($group in $itemGroups) {
-
-            $teamsAdaptiveCard.attachments[0].content.body += (
-                New-ServiceHealthServiceHeader `
-                    -ServiceName $group.Name `
-                    -Count $group.Count
-            )
-
-            foreach ($item in ($group.Group | Sort-Object LastModifiedDateTime -Descending)) {
-
-                $teamsAdaptiveCard.attachments[0].content.body += (
-                    New-ServiceHealthIssueHeader -Issue $item
-                )
-
-                $teamsAdaptiveCard.attachments[0].content.body += (
-                    New-ServiceHealthIssueFactSet -Issue $item
-                )
-
-                $teamsAdaptiveCard.attachments[0].content.body += (
-                    New-ServiceHealthIssueActionSet -Issue $item
-                )
-            }
-        }
+        $teamsAdaptiveCard.attachments[0].content.body += New-ServiceHealthAlertHeader -Issue $Issue -OrganizationName $OrganizationName
+        $teamsAdaptiveCard.attachments[0].content.body += New-ServiceHealthAlertFactSet -Issue $Issue
+        $teamsAdaptiveCard.attachments[0].content.body += New-ServiceHealthAlertActionSet -Issue $Issue
 
         return ($teamsAdaptiveCard | ConvertTo-Json -Depth 20)
     }
