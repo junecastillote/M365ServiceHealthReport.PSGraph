@@ -124,6 +124,233 @@ function New-TeamsCardJson {
             return $normalizedText
         }
 
+        function New-ServiceHealthCardHeader {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [ValidateNotNullOrEmpty()]
+                [string]$Title,
+
+                [Parameter(Mandatory)]
+                $ReportGeneratedDate,
+
+                [Parameter(Mandatory)]
+                [ValidateNotNullOrEmpty()]
+                $Issues
+            )
+
+            $totalIssues = $Issues.Count
+            $resolvedIssues = ($Issues | Where-Object { $_.IsResolved }).Count
+            $activeIssues = ($Issues | Where-Object { !$_.IsResolved }).Count
+
+            $incidentCount = ($Issues | Where-Object { $_.Classification -eq 'Incident' }).Count
+            $advisoryCount = ($Issues | Where-Object { $_.Classification -eq 'Advisory' }).Count
+
+            [pscustomobject][ordered]@{
+                type  = 'Container'
+                style = 'emphasis'
+                bleed = $true
+                items = @(
+                    [pscustomobject][ordered]@{
+                        type                = 'TextBlock'
+                        wrap                = $true
+                        weight              = 'Bolder'
+                        text                = $Title
+                        size                = 'Large'
+                        horizontalAlignment = 'Center'
+                    },
+                    [pscustomobject][ordered]@{
+                        type                = 'TextBlock'
+                        wrap                = $true
+                        text                = (Get-Date ($ReportGeneratedDate.ToLocalTime()) -Format F)
+                        horizontalAlignment = 'Center'
+                        spacing             = 'Small'
+                    },
+                    [pscustomobject][ordered]@{
+                        type                = 'TextBlock'
+                        wrap                = $true
+                        text                = "Total Events: $totalIssues | Active: $activeIssues | Resolved: $resolvedIssues"
+                        horizontalAlignment = 'Center'
+                        spacing             = 'Small'
+                        isSubtle            = $true
+                    },
+                    [pscustomobject][ordered]@{
+                        type                = 'TextBlock'
+                        wrap                = $true
+                        text                = "Incidents: $incidentCount | Advisories: $advisoryCount"
+                        horizontalAlignment = 'Center'
+                        spacing             = 'None'
+                        isSubtle            = $true
+                    }
+                )
+            }
+        }
+
+        function New-ServiceHealthIssueHeader {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [ValidateNotNull()]
+                $Issue
+            )
+
+            $elementId = ConvertTo-AdaptiveCardElementId -Value $Issue.Id
+            $detailsId = 'v' + $elementId
+            $actionsId = 'a' + $elementId
+            $toggleDownId = 'toggle_' + $elementId + 'Down'
+            $toggleUpId = 'toggle_' + $elementId + 'Up'
+
+            $classificationColor = Get-ServiceHealthClassificationColor -Classification $Issue.Classification
+            $containerStyle = Get-ServiceHealthHeaderStyle -Issue $Issue
+            $classificationText = Format-ServiceHealthText -Text $Issue.Classification
+
+            $resolutionState = if ($Issue.IsResolved) {
+                'Resolved'
+            }
+            else {
+                'Active'
+            }
+
+            $statusText = $resolutionState + ' | ' + $Issue.Status
+            $lastUpdatedText = 'Updated: ' + (Format-ServiceHealthCardDate -DateTime $Issue.LastModifiedDateTime)
+
+            [pscustomobject][ordered]@{
+                type         = 'Container'
+                style        = $containerStyle
+                bleed        = $true
+                showBorder   = $true
+                selectAction = [pscustomobject][ordered]@{
+                    type           = 'Action.ToggleVisibility'
+                    targetElements = @(
+                        $detailsId,
+                        $actionsId,
+                        $toggleDownId,
+                        $toggleUpId
+                    )
+                }
+                items        = @(
+                    [pscustomobject][ordered]@{
+                        type    = 'ColumnSet'
+                        id      = 'colSet_' + $elementId
+                        bleed   = $true
+                        columns = @(
+                            [pscustomobject][ordered]@{
+                                type                     = 'Column'
+                                width                    = 'stretch'
+                                verticalContentAlignment = 'Bottom'
+                                spacing                  = 'ExtraSmall'
+                                items                    = @(
+                                    [pscustomobject][ordered]@{
+                                        type    = 'TextBlock'
+                                        text    = $Issue.Service
+                                        wrap    = $true
+                                        size    = 'Default'
+                                        weight  = 'Bolder'
+                                        color   = 'Accent'
+                                        spacing = 'None'
+                                    },
+                                    [pscustomobject][ordered]@{
+                                        type    = 'TextBlock'
+                                        text    = $classificationText
+                                        wrap    = $true
+                                        weight  = 'Bolder'
+                                        size    = 'Small'
+                                        color   = $classificationColor
+                                        spacing = 'None'
+                                    },
+                                    [pscustomobject][ordered]@{
+                                        type    = 'TextBlock'
+                                        text    = $Issue.Id
+                                        wrap    = $true
+                                        weight  = 'Bolder'
+                                        size    = 'Large'
+                                        color   = $classificationColor
+                                        spacing = 'Small'
+                                    },
+                                    [pscustomobject][ordered]@{
+                                        type    = 'TextBlock'
+                                        text    = $statusText
+                                        wrap    = $true
+                                        weight  = 'Bolder'
+                                        size    = 'Small'
+                                        color   = if ($Issue.IsResolved) { 'Good' } else { 'Attention' }
+                                        spacing = 'Small'
+                                    },
+                                    [pscustomobject][ordered]@{
+                                        type     = 'TextBlock'
+                                        text     = $lastUpdatedText
+                                        wrap     = $true
+                                        size     = 'Small'
+                                        isSubtle = $true
+                                        spacing  = 'None'
+                                    },
+                                    [pscustomobject][ordered]@{
+                                        type    = 'TextBlock'
+                                        text    = $Issue.Title
+                                        wrap    = $true
+                                        weight  = 'Bolder'
+                                        size    = 'Medium'
+                                        color   = 'Accent'
+                                        spacing = 'Small'
+                                    }
+                                )
+                            },
+                            [pscustomobject][ordered]@{
+                                type                     = 'Column'
+                                width                    = 'auto'
+                                verticalContentAlignment = 'Center'
+                                spacing                  = 'ExtraSmall'
+                                items                    = @(
+                                    [pscustomobject][ordered]@{
+                                        type         = 'Icon'
+                                        name         = 'ChevronDown'
+                                        id           = $toggleDownId
+                                        size         = 'xxSmall'
+                                        selectAction = [pscustomobject][ordered]@{
+                                            type           = 'Action.ToggleVisibility'
+                                            targetElements = @(
+                                                $detailsId,
+                                                $actionsId,
+                                                $toggleDownId,
+                                                $toggleUpId
+                                            )
+                                        }
+                                        fallback     = [pscustomobject][ordered]@{
+                                            type = 'TextBlock'
+                                            text = '▼'
+                                            wrap = $true
+                                        }
+                                    },
+                                    [pscustomobject][ordered]@{
+                                        type         = 'Icon'
+                                        name         = 'ChevronUp'
+                                        id           = $toggleUpId
+                                        size         = 'xxSmall'
+                                        isVisible    = $false
+                                        selectAction = [pscustomobject][ordered]@{
+                                            type           = 'Action.ToggleVisibility'
+                                            targetElements = @(
+                                                $detailsId,
+                                                $actionsId,
+                                                $toggleDownId,
+                                                $toggleUpId
+                                            )
+                                        }
+                                        fallback     = [pscustomobject][ordered]@{
+                                            type      = 'TextBlock'
+                                            text      = '▲'
+                                            wrap      = $true
+                                            isVisible = $false
+                                        }
+                                    }
+                                )
+                            }
+                        )
+                    }
+                )
+            }
+        }
+
         function Get-ServiceHealthLatestUpdateText {
             [CmdletBinding()]
             param(
@@ -160,7 +387,7 @@ function New-TeamsCardJson {
 
             switch ($Classification.Trim().ToLowerInvariant()) {
                 'incident' { return 'Attention' }
-                default    { return 'Warning' }
+                default { return 'Warning' }
             }
         }
 
@@ -168,6 +395,7 @@ function New-TeamsCardJson {
             [CmdletBinding()]
             param(
                 [Parameter(Mandatory)]
+                [ValidateNotNull()]
                 $Issue
             )
 
@@ -178,14 +406,101 @@ function New-TeamsCardJson {
             return 'attention'
         }
 
-        function New-ServiceHealthCardHeader {
+
+        function New-ServiceHealthIssueFactSet {
             [CmdletBinding()]
             param(
                 [Parameter(Mandatory)]
-                [string]$Title,
+                [ValidateNotNull()]
+                $Issue
+            )
+
+            $elementId = ConvertTo-AdaptiveCardElementId -Value $Issue.Id
+            $detailsId = 'v' + $elementId
+
+            # $latestUpdate = Get-ServiceHealthLatestUpdateText -Issue $Issue
+            $latestUpdateInfo = Get-ServiceHealthLatestUpdateObject -Issue $Issue
+
+            # Incrimentally build the facts
+            $facts = @(
+                [pscustomobject][ordered]@{
+                    title = 'User impact'
+                    value = $Issue.ImpactDescription
+                },
+                [pscustomobject][ordered]@{
+                    title = 'Start time'
+                    value = Format-ServiceHealthCardDate -DateTime $Issue.StartDateTime
+                }
+            )
+
+            # Add 'End time' only if it exists
+            if ($Issue.EndDateTime) {
+                $facts += [pscustomobject][ordered]@{
+                    title = 'End time'
+                    value = Format-ServiceHealthCardDate -DateTime $Issue.EndDateTime
+                }
+            }
+
+            # Add 'Latest update'
+            $facts += [pscustomobject][ordered]@{
+                title = 'Latest update'
+                value = $latestUpdateInfo.Update
+            }
+
+            # Add 'Next update by' is it exists
+            if (![System.String]::IsNullOrWhiteSpace($latestUpdateInfo.NextUpdateBy)) {
+                $facts += [pscustomobject][ordered]@{
+                    title = 'Next update by'
+                    value = $latestUpdateInfo.NextUpdateBy
+                }
+            }
+
+            [pscustomobject][ordered]@{
+                type      = 'FactSet'
+                id        = $detailsId
+                isVisible = $false
+                separator = $true
+                facts     = $facts
+            }
+        }
+
+        function New-ServiceHealthIssueActionSet {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [ValidateNotNull()]
+                $Issue
+            )
+
+            $elementId = ConvertTo-AdaptiveCardElementId -Value $Issue.Id
+            $actionsId = 'a' + $elementId
+            $adminCenterUrl = 'https://admin.cloud.microsoft/?#/servicehealth/:/alerts/' + $Issue.Id
+
+            [pscustomobject][ordered]@{
+                type      = 'ActionSet'
+                id        = $actionsId
+                isVisible = $false
+                separator = $false
+                spacing   = 'Medium'
+                actions   = @(
+                    [pscustomobject][ordered]@{
+                        type  = 'Action.OpenUrl'
+                        title = 'Open ' + $Issue.Id + ' in Admin Center'
+                        url   = $adminCenterUrl
+                        style = 'positive'
+                    }
+                )
+            }
+        }
+
+        function New-ServiceHealthServiceHeader {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [string]$ServiceName,
 
                 [Parameter(Mandatory)]
-                $ReportGeneratedDate
+                [int]$Count
             )
 
             [pscustomobject][ordered]@{
@@ -194,206 +509,62 @@ function New-TeamsCardJson {
                 bleed = $true
                 items = @(
                     [pscustomobject][ordered]@{
-                        type                = 'TextBlock'
-                        wrap                = $true
-                        weight              = 'Bolder'
-                        text                = $Title
-                        size                = 'Large'
-                        horizontalAlignment = 'Center'
-                    },
-                    [pscustomobject][ordered]@{
-                        type                = 'TextBlock'
-                        wrap                = $true
-                        text                = (Get-Date ($ReportGeneratedDate.ToLocalTime()) -Format F)
-                        horizontalAlignment = 'Center'
+                        type   = 'TextBlock'
+                        text   = "$ServiceName ($Count)"
+                        weight = 'Bolder'
+                        size   = 'Medium'
+                        wrap   = $true
                     }
                 )
             }
         }
 
-        function New-ServiceHealthIssueHeader {
+        function Get-ServiceHealthLatestUpdateObject {
             [CmdletBinding()]
             param(
                 [Parameter(Mandatory)]
+                [ValidateNotNull()]
                 $Issue
             )
 
-            $elementId = ConvertTo-AdaptiveCardElementId -Value $Issue.Id
-            $detailsId = 'v' + $elementId
-            $toggleDownId = 'toggle_' + $elementId + 'Down'
-            $toggleUpId = 'toggle_' + $elementId + 'Up'
+            $latestPost = if ($Issue.Posts -and $Issue.Posts.Count -gt 0) {
+                $Issue.Posts[-1]
+            }
 
-            $classificationColor = Get-ServiceHealthClassificationColor -Classification $Issue.Classification
-            $containerStyle = Get-ServiceHealthHeaderStyle -Issue $Issue
-
-            [pscustomobject][ordered]@{
-                type         = 'Container'
-                style        = $containerStyle
-                bleed        = $true
-                showBorder   = $true
-                selectAction = [pscustomobject][ordered]@{
-                    type           = 'Action.ToggleVisibility'
-                    targetElements = @(
-                        $detailsId,
-                        $toggleDownId,
-                        $toggleUpId
-                    )
+            if (
+                !$latestPost -or
+                !$latestPost.Description -or
+                [System.String]::IsNullOrWhiteSpace($latestPost.Description.Content)
+            ) {
+                return [pscustomobject]@{
+                    Update       = 'No latest update available.'
+                    NextUpdateBy = ''
                 }
-                items        = @(
-                    [pscustomobject][ordered]@{
-                        type    = 'ColumnSet'
-                        id      = 'colSet_' + $elementId
-                        bleed   = $true
-                        columns = @(
-                            [pscustomobject][ordered]@{
-                                type                     = 'Column'
-                                width                    = 'stretch'
-                                verticalContentAlignment = 'Bottom'
-                                spacing                  = 'ExtraSmall'
-                                items                    = @(
-                                    [pscustomobject][ordered]@{
-                                        type   = 'TextBlock'
-                                        text   = $Issue.Service
-                                        wrap   = $true
-                                        size   = 'Default'
-                                        weight = 'Bolder'
-                                        color  = 'Accent'
-                                    },
-                                    [pscustomobject][ordered]@{
-                                        type   = 'TextBlock'
-                                        text   = $Issue.Id
-                                        wrap   = $true
-                                        weight = 'Bolder'
-                                        size   = 'Large'
-                                        color  = $classificationColor
-                                    },
-                                    [pscustomobject][ordered]@{
-                                        type   = 'TextBlock'
-                                        text   = $Issue.Title
-                                        wrap   = $true
-                                        weight = 'Bolder'
-                                        size   = 'Medium'
-                                        color  = 'Accent'
-                                    }
-                                )
-                            },
-                            [pscustomobject][ordered]@{
-                                type                     = 'Column'
-                                width                    = 'auto'
-                                verticalContentAlignment = 'Center'
-                                spacing                  = 'ExtraSmall'
-                                items                    = @(
-                                    [pscustomobject][ordered]@{
-                                        type         = 'Icon'
-                                        name         = 'ChevronDown'
-                                        id           = $toggleDownId
-                                        size         = 'xxSmall'
-                                        selectAction = [pscustomobject][ordered]@{
-                                            type           = 'Action.ToggleVisibility'
-                                            targetElements = @(
-                                                $detailsId,
-                                                $toggleDownId,
-                                                $toggleUpId
-                                            )
-                                        }
-                                        fallback     = [pscustomobject][ordered]@{
-                                            type = 'TextBlock'
-                                            text = '▼'
-                                            wrap = $true
-                                        }
-                                    },
-                                    [pscustomobject][ordered]@{
-                                        type         = 'Icon'
-                                        name         = 'ChevronUp'
-                                        id           = $toggleUpId
-                                        size         = 'xxSmall'
-                                        isVisible    = $false
-                                        selectAction = [pscustomobject][ordered]@{
-                                            type           = 'Action.ToggleVisibility'
-                                            targetElements = @(
-                                                $detailsId,
-                                                $toggleDownId,
-                                                $toggleUpId
-                                            )
-                                        }
-                                        fallback     = [pscustomobject][ordered]@{
-                                            type      = 'TextBlock'
-                                            text      = '▲'
-                                            wrap      = $true
-                                            isVisible = $false
-                                        }
-                                    }
-                                )
-                            }
-                        )
-                    }
-                )
             }
-        }
 
-        function New-ServiceHealthIssueFactSet {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                $Issue
+            $messageText = $latestPost.Description.Content.Trim()
+
+            $nextUpdateMatch = [System.Text.RegularExpressions.Regex]::Match(
+                $messageText,
+                '(?is)Next update by:\s*(?<NextUpdate>.*?)(?=\r?\n\s*\r?\n|\z)'
             )
 
-            $elementId = ConvertTo-AdaptiveCardElementId -Value $Issue.Id
-            $detailsId = 'v' + $elementId
+            $nextUpdateBy = ''
 
-            $classification = Format-ServiceHealthText -Text $Issue.Classification
-
-            $resolutionState = if ($Issue.IsResolved) {
-                'Resolved'
-            }
-            else {
-                'Active'
+            if ($nextUpdateMatch.Success) {
+                $nextUpdateBy = $nextUpdateMatch.Groups['NextUpdate'].Value.Trim()
             }
 
-            $status = $resolutionState + ' | ' + $Issue.Status
-            $latestUpdate = Get-ServiceHealthLatestUpdateText -Issue $Issue
-            $adminCenterUrl = 'https://admin.cloud.microsoft/?#/servicehealth/:/alerts/' + $Issue.Id
-            $adminCenterLink = '' + $adminCenterUrl + ''
+            $updateText = Get-ServiceHealthPortalStyleUpdateText -Text $messageText
 
-            [pscustomobject][ordered]@{
-                type      = 'FactSet'
-                id        = $detailsId
-                isVisible = $false
-                separator = $true
-                facts     = @(
-                    [pscustomobject][ordered]@{
-                        title = 'Issue type'
-                        value = $classification
-                    },
-                    [pscustomobject][ordered]@{
-                        title = 'Status'
-                        value = $status
-                    },
-                    [pscustomobject][ordered]@{
-                        title = 'User impact'
-                        value = $Issue.ImpactDescription
-                    },
-                    [pscustomobject][ordered]@{
-                        title = 'Start time'
-                        value = Format-ServiceHealthCardDate -DateTime $Issue.StartDateTime
-                    },
-                    [pscustomobject][ordered]@{
-                        title = 'End time'
-                        value = Format-ServiceHealthCardDate -DateTime $Issue.EndDateTime
-                    },
-                    [pscustomobject][ordered]@{
-                        title = 'Update time'
-                        value = Format-ServiceHealthCardDate -DateTime $Issue.LastModifiedDateTime
-                    },
-                    [pscustomobject][ordered]@{
-                        title = 'Update'
-                        value = $latestUpdate
-                    },
-                    [pscustomobject][ordered]@{
-                        title = 'Link'
-                        value = $adminCenterLink
-                    }
-                )
+            if ($nextUpdateBy) {
+                $updateText = $updateText -replace '(?is)\r?\n\r?\nNext update by:.*$', ''
+                $updateText = $updateText.Trim()
+            }
+
+            [pscustomobject]@{
+                Update       = $updateText
+                NextUpdateBy = $nextUpdateBy
             }
         }
     }
@@ -403,9 +574,10 @@ function New-TeamsCardJson {
 
         $teamsAdaptiveCard = Get-Content -Path $teamsAdaptiveCardPath -Raw | ConvertFrom-Json
 
-        # Ensure body starts empty even if the template file is later modified.
+        # Ensure the template body starts empty even if the JSON template file is later modified.
         $teamsAdaptiveCard.attachments[0].content.body = @()
 
+        # Icon requires Adaptive Card 1.5.
         $teamsAdaptiveCard.attachments[0].content.version = '1.5'
 
         if (!$teamsAdaptiveCard.attachments[0].content.msTeams) {
@@ -416,11 +588,35 @@ function New-TeamsCardJson {
 
         $teamsAdaptiveCard.attachments[0].content.body += New-ServiceHealthCardHeader `
             -Title $Title `
-            -ReportGeneratedDate $InputObject[0].ReportGeneratedDate
+            -ReportGeneratedDate $InputObject[0].ReportGeneratedDate `
+            -Issues $InputObject
 
-        foreach ($item in ($InputObject | Sort-Object LastModifiedDateTime -Descending)) {
-            $teamsAdaptiveCard.attachments[0].content.body += New-ServiceHealthIssueHeader -Issue $item
-            $teamsAdaptiveCard.attachments[0].content.body += New-ServiceHealthIssueFactSet -Issue $item
+        $itemGroups = $InputObject |
+        Group-Object Service |
+        Sort-Object Count, Name -Descending
+
+        foreach ($group in $itemGroups) {
+
+            $teamsAdaptiveCard.attachments[0].content.body += (
+                New-ServiceHealthServiceHeader `
+                    -ServiceName $group.Name `
+                    -Count $group.Count
+            )
+
+            foreach ($item in ($group.Group | Sort-Object LastModifiedDateTime -Descending)) {
+
+                $teamsAdaptiveCard.attachments[0].content.body += (
+                    New-ServiceHealthIssueHeader -Issue $item
+                )
+
+                $teamsAdaptiveCard.attachments[0].content.body += (
+                    New-ServiceHealthIssueFactSet -Issue $item
+                )
+
+                $teamsAdaptiveCard.attachments[0].content.body += (
+                    New-ServiceHealthIssueActionSet -Issue $item
+                )
+            }
         }
 
         return ($teamsAdaptiveCard | ConvertTo-Json -Depth 20)
