@@ -15,6 +15,96 @@ function Send-M365ServiceHealthReportToTeams {
     begin {
         $star_divider = ('*' * 70)
 
+        function New-TeamsBatchHeaderCard {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [ValidateNotNull()]
+                $Report
+            )
+
+            $summary = $Report.GetSummary()
+
+            $incidentCount = ($Report.Issues | Where-Object {
+                    $_.Classification -eq 'Incident'
+                }).Count
+
+            $advisoryCount = ($Report.Issues | Where-Object {
+                    $_.Classification -eq 'Advisory'
+                }).Count
+
+            $payload = @{
+                type        = 'message'
+                attachments = @(
+                    @{
+                        contentType = 'application/vnd.microsoft.card.adaptive'
+                        contentUrl  = $null
+                        content     = @{
+                            '$schema' = 'https://adaptivecards.io/schemas/adaptive-card.json'
+                            type      = 'AdaptiveCard'
+                            version   = '1.5'
+                            msTeams   = @{
+                                width = 'full'
+                            }
+                            body      = @(
+                                @{
+                                    type  = 'Container'
+                                    style = 'emphasis'
+                                    bleed = $true
+                                    items = @(
+                                        @{
+                                            type                = 'TextBlock'
+                                            text                = 'Microsoft 365 Service Health Alert Summary'
+                                            size                = 'Large'
+                                            weight              = 'Bolder'
+                                            wrap                = $true
+                                            horizontalAlignment = 'Center'
+                                        },
+                                        @{
+                                            type                = 'TextBlock'
+                                            text                = $Report.OrganizationName
+                                            wrap                = $true
+                                            horizontalAlignment = 'Center'
+                                            isSubtle            = $true
+                                        },
+                                        @{
+                                            type                = 'TextBlock'
+                                            text                = ('Generated: {0:F}' -f $Report.ReportGeneratedDate.ToLocalTime())
+                                            wrap                = $true
+                                            horizontalAlignment = 'Center'
+                                            isSubtle            = $true
+                                        }
+                                    )
+                                },
+                                @{
+                                    type  = 'Container'
+                                    items = @(
+                                        @{
+                                            type                = 'TextBlock'
+                                            text                = "Total: $($summary.Count) | Active: $($summary.Unresolved) | Resolved: $($summary.Resolved)"
+                                            wrap                = $true
+                                            horizontalAlignment = 'Center'
+                                            weight              = 'Bolder'
+                                        },
+                                        @{
+                                            type                = 'TextBlock'
+                                            text                = "Incidents: $incidentCount | Advisories: $advisoryCount"
+                                            wrap                = $true
+                                            horizontalAlignment = 'Center'
+                                            isSubtle            = $true
+                                            spacing             = 'None'
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
+                )
+            }
+
+            return ($payload | ConvertTo-Json -Depth 20)
+        }
+
         function Get-TeamsCardPayload {
             [CmdletBinding()]
             param(
@@ -68,6 +158,7 @@ function Send-M365ServiceHealthReportToTeams {
 
     process {
         foreach ($report in $InputObject) {
+            $batchHeaderCard = New-TeamsBatchHeaderCard -Report $report
             $teamsCardPayloads = Get-TeamsCardPayload -ReportObject $report
 
             if ($teamsCardPayloads.Count -eq 0) {
@@ -77,6 +168,24 @@ function Send-M365ServiceHealthReportToTeams {
 
             $payloadIndex = 0
             $payloadCount = $teamsCardPayloads.Count
+
+            # Post batch header
+            foreach ($url in $TeamsWebhookUrl) {
+
+                SayInfo "Posting Teams alert batch header."
+
+                try {
+                    Invoke-RestMethod `
+                        -Uri $url `
+                        -Method POST `
+                        -Body $batchHeaderCard `
+                        -ContentType 'application/json' `
+                        -ErrorAction Stop
+                }
+                catch {
+                    SayError "Failed to post Teams alert batch header.`n$star_divider`n$_`n$star_divider"
+                }
+            }
 
             foreach ($payload in $teamsCardPayloads) {
                 $payloadIndex++
@@ -93,6 +202,7 @@ function Send-M365ServiceHealthReportToTeams {
 
                 $payloadSizeBytes = Get-Utf8ByteCount -Text $payload
 
+                # Post individual alerts
                 foreach ($url in $TeamsWebhookUrl) {
                     SayInfo "Posting Teams alert card [$payloadIndex/$payloadCount] to Teams webhook. Payload size: $payloadSizeBytes bytes."
 
