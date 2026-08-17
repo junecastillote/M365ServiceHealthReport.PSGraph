@@ -131,7 +131,7 @@ function ConvertTo-M365ServiceHealthReportObject {
                     '</table>'
                 )
 
-                $html_content.Add('<hr>')
+                # $html_content.Add('<hr>')
                 $html_content.Add('<table class="section-table" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th><a id="summary" name="summary">Summary</a></th></tr></table>')
                 $html_content.Add('<hr>')
 
@@ -203,80 +203,101 @@ function ConvertTo-M365ServiceHealthReportObject {
                 }
                 $html_content.Add('</table>')
 
-                foreach ($item in $issue_collection) {
-                    # foreach ($item in ($issue_collection | Sort-Object LastModifiedDateTime -Descending)) {
-                    $anchorId = ConvertTo-HtmlAnchorId -Value $item.Id
-                    $eventId = ConvertTo-HtmlEncodedText -Text $item.Id
-                    $service = ConvertTo-HtmlEncodedText -Text $item.Service
-                    $title = ConvertTo-HtmlEncodedText -Text $item.Title
-                    $status = ConvertTo-HtmlEncodedText -Text $item.Status
-                    $html_content.Add('<hr>')
-                    $leftColor = if ($item.IsResolved) {
-                        '#107C10'
+                $html_content.Add('<table class="section-table" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th><a id="summary" name="summary">Issues</a></th></tr></table>')
+                $html_content.Add('<hr>')
+                # Individual issues table
+                foreach ($group in $itemGroup) {
+                    foreach ($item in ($issue_collection | Where-Object { $_.Service -eq $group.Name } | Sort-Object LastModifiedDateTime -Descending)) {
+                        # foreach ($item in $issue_collection) {
+                        $anchorId = ConvertTo-HtmlAnchorId -Value $item.Id
+                        $eventId = ConvertTo-HtmlEncodedText -Text $item.Id
+                        $service = ConvertTo-HtmlEncodedText -Text $item.Service
+                        $title = ConvertTo-HtmlEncodedText -Text $item.Title
+                        $status = ConvertTo-HtmlEncodedText -Text $item.Status
+                        $leftColor = if ($item.IsResolved) {
+                            '#107C10'
+                        }
+                        else {
+                            '#D13438'
+                        }
+                        $anchorId = ConvertTo-HtmlAnchorId -Value $item.Id
+                        $eventId = ConvertTo-HtmlEncodedText -Text $item.Id
+                        $service = ConvertTo-HtmlEncodedText -Text $item.Service
+                        $title = ConvertTo-HtmlEncodedText -Text $item.Title
+                        $status = ConvertTo-HtmlEncodedText -Text $item.Status
+                        $html_content.Add(
+                            '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:none;">' +
+                            '<tr>' +
+                            # '<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:1px solid #DDDDDD;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">' +
+                            '<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:none;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">' +
+                            '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">' +
+                            '<tr>' +
+                            '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;color:#666666;padding:0 0 4px 0;mso-line-height-rule:exactly;">' +
+                            $service +
+                            '</td>' +
+                            '</tr>' +
+                            '<tr>' +
+                            '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:18px;line-height:22px;font-weight:bold;color:#242424;padding:0 0 6px 0;mso-line-height-rule:exactly;">' +
+                            '<a id="' + $anchorId + '" name="' + $anchorId + '" target="_blank" href="' + "https://admin.cloud.microsoft/?#/servicehealth/:/alerts/$($eventId)" + '">' + $eventId + '</a>' +
+                            '</td>' +
+                            '</tr>' +
+                            '<tr>' +
+                            '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;font-weight:bold;color:#8A5A00;padding:0 0 8px 0;mso-line-height-rule:exactly;">' +
+                            $status +
+                            '</td>' +
+                            '</tr>' +
+                            '<tr>' +
+                            '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:14px;line-height:18px;color:#242424;padding:0;mso-line-height-rule:exactly;">' +
+                            $title +
+                            '</td>' +
+                            '</tr>' +
+                            '</table>' +
+                            '</td>' +
+                            '</tr>' +
+                            '</table>'
+                        )
+
+                        # $html_content.Add('<hr>')
+
+
+
+                        $status = ConvertTo-HtmlEncodedText -Text $item.Status
+                        $classification = Get-ServiceHealthClassificationHtml `
+                            -Classification $item.Classification `
+                            -YellowDotSource $yellowDotDataUri `
+                            -RedDotSource $redDotDataUri
+                        $impactDescription = ConvertTo-HtmlEncodedText -Text $item.ImpactDescription
+
+                        # $html_content.Add('<table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0">')
+
+
+                        # Outer table for left color
+                        $html_content.Add(
+                            '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:none;">' +
+                            '<tr>' +
+                            '<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:1px solid #DDDDDD;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';">'
+                            # '<td style="width:120px;background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:1px solid #DDDDDD;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';">'
+                        )
+
+                        # Inner table
+                        $html_content.Add('<table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0">')
+                        $html_content.Add('<tr><th style="width:120px;border-top:none;">Issue Type</th><td style="border-top:none;border-right:none;">' + $classification + '</td></tr>')
+                        $html_content.Add('<tr><th style="width:120px;">User Impact</th><td style="border-right:none;">' + $impactDescription + '</td></tr>')
+                        $html_content.Add('<tr><th style="width:120px;">Start Time</th><td style="border-right:none;">' + (Format-ServiceHealthDate -DateTime $item.StartDateTime) + '</td></tr>')
+                        $html_content.Add('<tr><th style="width:120px;">End Time</th><td style="border-right:none;">' + $(
+                                if ($item.endDateTime) {
+                                    (Format-ServiceHealthDate -DateTime $item.EndDateTime)
+                                }
+                            ) + '</td></tr>')
+                        $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $item
+                        $html_content.Add('<tr><th style="width:120px;">Last Updated</th><td style="border-right:none;">' + (Format-ServiceHealthDate -DateTime $item.LastModifiedDateTime) + '</td></tr>')
+                        $html_content.Add('<tr><th style="width:120px;border-bottom:none;">Update</th><td style="border-right:none;border-bottom:none;">' + $latestMessage + '</td></tr>')
+                        $html_content.Add('</table>')
+
+                        $html_content.Add('</td></tr></table>')
+
+                        $html_content.Add('<div class="back-to-summary"><a href = "#summary">back to summary</a></div>')
                     }
-                    else {
-                        '#D13438'
-                    }
-                    $anchorId = ConvertTo-HtmlAnchorId -Value $item.Id
-                    $eventId = ConvertTo-HtmlEncodedText -Text $item.Id
-                    $service = ConvertTo-HtmlEncodedText -Text $item.Service
-                    $title = ConvertTo-HtmlEncodedText -Text $item.Title
-                    $status = ConvertTo-HtmlEncodedText -Text $item.Status
-                    $html_content.Add(
-                        '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:none;">' +
-                        '<tr>' +
-                        '<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:1px solid #DDDDDD;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">' +
-                        '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">' +
-                        '<tr>' +
-                        '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;color:#666666;padding:0 0 4px 0;mso-line-height-rule:exactly;">' +
-                        $service +
-                        '</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                        '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:18px;line-height:22px;font-weight:bold;color:#242424;padding:0 0 6px 0;mso-line-height-rule:exactly;">' +
-                        '<a id="' + $anchorId + '" name="' + $anchorId + '" target="_blank" href="' + "https://admin.cloud.microsoft/?#/servicehealth/:/alerts/$($eventId)" + '">' + $eventId + '</a>' +
-                        '</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                        '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;font-weight:bold;color:#8A5A00;padding:0 0 8px 0;mso-line-height-rule:exactly;">' +
-                        $status +
-                        '</td>' +
-                        '</tr>' +
-                        '<tr>' +
-                        '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:14px;line-height:18px;color:#242424;padding:0;mso-line-height-rule:exactly;">' +
-                        $title +
-                        '</td>' +
-                        '</tr>' +
-                        '</table>' +
-                        '</td>' +
-                        '</tr>' +
-                        '</table>'
-                    )
-
-                    $html_content.Add('<hr>')
-
-                    $html_content.Add('<table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0">')
-
-                    $status = ConvertTo-HtmlEncodedText -Text $item.Status
-                    $classification = Get-ServiceHealthClassificationHtml `
-                        -Classification $item.Classification `
-                        -YellowDotSource $yellowDotDataUri `
-                        -RedDotSource $redDotDataUri
-                    $impactDescription = ConvertTo-HtmlEncodedText -Text $item.ImpactDescription
-
-                    $html_content.Add('<tr><th>Issue Type</th><td>' + $classification + '</td></tr>')
-                    $html_content.Add('<tr><th>User Impact</th><td>' + $impactDescription + '</td></tr>')
-                    $html_content.Add('<tr><th>Start Time</th><td>' + (Format-ServiceHealthDate -DateTime $item.StartDateTime) + '</td></tr>')
-                    $html_content.Add('<tr><th>End Time</th><td>' + $(
-                            if ($item.endDateTime) {
-                                (Format-ServiceHealthDate -DateTime $item.EndDateTime)
-                            }
-                        ) + '</td></tr>')
-                    $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $item
-                    $html_content.Add('<tr><th>Last Updated</th><td>' + (Format-ServiceHealthDate -DateTime $item.LastModifiedDateTime) + '</td></tr>')
-                    $html_content.Add('<tr><th>Update</th><td>' + $latestMessage + '</td></tr>')
-                    $html_content.Add('</table>')
-                    $html_content.Add('<div class="back-to-summary"><a href = "#summary">back to summary</a></div>')
                 }
 
                 $projectUri = ConvertTo-HtmlEncodedText -Text $moduleInfo.ProjectURI.ToString()
