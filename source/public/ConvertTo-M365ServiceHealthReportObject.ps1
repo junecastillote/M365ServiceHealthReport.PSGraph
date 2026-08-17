@@ -181,7 +181,7 @@ function ConvertTo-M365ServiceHealthReportObject {
                         else {
                             '#D13438'
                         }
- 
+
                         $statusCellStyle = @(
                             'border-top:1px solid #DDDDDD'
                             'border-right:1px solid #DDDDDD'
@@ -320,12 +320,7 @@ function ConvertTo-M365ServiceHealthReportObject {
                 if ($TeamsCardFileName) {
                     $teams_card_report_file = (Resolve-Path $TeamsCardFileName).Path
 
-                    $teams_card_content |
-                    ForEach-Object {
-                        $_
-                        ''
-                    } |
-                    Out-File $teams_card_report_file -Encoding utf8
+                    "[" + ($teams_card_content -join ",") + "]" | Out-File $teams_card_report_file -Encoding utf8
 
                     "Teams alert card JSON saved @ $($teams_card_report_file)" | SayInfo
                 }
