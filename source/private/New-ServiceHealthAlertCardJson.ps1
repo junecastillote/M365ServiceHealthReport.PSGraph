@@ -221,15 +221,15 @@ function New-ServiceHealthAlertCardJson {
                 style        = $containerStyle
                 bleed        = $true
                 showBorder   = $true
-                selectAction = [pscustomobject][ordered]@{
-                    type           = 'Action.ToggleVisibility'
-                    targetElements = @(
-                        $detailsId,
-                        $actionsId,
-                        $toggleDownId,
-                        $toggleUpId
-                    )
-                }
+                # selectAction = [pscustomobject][ordered]@{
+                #     type           = 'Action.ToggleVisibility'
+                #     targetElements = @(
+                #         $detailsId,
+                #         $actionsId,
+                #         $toggleDownId,
+                #         $toggleUpId
+                #     )
+                # }
                 items        = @(
                     [pscustomobject][ordered]@{
                         type    = 'ColumnSet'
