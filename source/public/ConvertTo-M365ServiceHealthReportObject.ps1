@@ -289,14 +289,9 @@ function ConvertTo-M365ServiceHealthReportObject {
                                     (Format-ServiceHealthDate -DateTime $item.EndDateTime)
                                 ) + '</td></tr>')
                         }
-
-                        # $html_content.Add('<tr><th style="width:120px;">End Time</th><td style="border-right:none;">' + $(
-                        #         if ($item.endDateTime) {
-                        #             (Format-ServiceHealthDate -DateTime $item.EndDateTime)
-                        #         }
-                        #     ) + '</td></tr>')
-                        $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $item
                         $html_content.Add('<tr><th style="width:120px;">Last Updated</th><td style="border-right:none;">' + (Format-ServiceHealthDate -DateTime $item.LastModifiedDateTime) + '</td></tr>')
+
+                        $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $item
                         $html_content.Add('<tr><th style="width:120px;border-bottom:none;">Update</th><td style="border-right:none;border-bottom:none;">' + $latestMessage + '</td></tr>')
                         $html_content.Add('</table>')
 
