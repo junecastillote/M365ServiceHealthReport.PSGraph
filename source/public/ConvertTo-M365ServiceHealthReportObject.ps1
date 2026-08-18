@@ -196,7 +196,15 @@ function ConvertTo-M365ServiceHealthReportObject {
                             '<tr>' +
                             '<td style="text-align:left;white-space:nowrap;border:1px solid #DDDDDD;padding:5px 8px;">&nbsp;&nbsp;&#8227;<a href="#' + $anchorId + '">' + $eventId + '</a></td>' +
                             '<td style="border:1px solid #DDDDDD;padding:7px 8px;">' + $classification + '</td>' +
-                            '<td style="' + $statusCellStyle + '">' + $status + '</td>' +
+                            # '<td style="' + $statusCellStyle + '">' + $status + '</td>' +
+                            '<td style="' + $statusCellStyle + '">' + $(
+                                if ($item.IsResolved) {
+                                    "Resolved | $($status)"
+                                }
+                                else {
+                                    "Active | $($status)"
+                                }
+                            ) + '</td>' +
                             '<td style="border:1px solid #DDDDDD;padding:7px 8px;white-space:nowrap;">' + $lastUpdated + '</td>' +
                             '<td style="border:1px solid #DDDDDD;padding:7px 8px;">' + $title + '</td>' +
                             '</tr>'
