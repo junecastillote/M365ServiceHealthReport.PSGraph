@@ -225,37 +225,88 @@ function ConvertTo-M365ServiceHealthReportObject {
                         $service = ConvertTo-HtmlEncodedText -Text $item.Service
                         $title = ConvertTo-HtmlEncodedText -Text $item.Title
                         $status = ConvertTo-HtmlEncodedText -Text $item.Status
-                        $html_content.Add(
-                            '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:none;">' +
-                            '<tr>' +
-                            # '<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:1px solid #DDDDDD;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">' +
-                            '<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:none;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">' +
-                            '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">' +
-                            '<tr>' +
-                            '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;color:#666666;padding:0 0 4px 0;mso-line-height-rule:exactly;">' +
+
+                        # =====================================
+                        # Issue header
+                        # =====================================
+                        # Outer table
+                        $html_content.Add('<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:none;">')
+                        $html_content.Add('<tr>')
+                        # Left border color
+                        $html_content.Add('<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:none;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">')
+                        # Inner table 1
+                        $html_content.Add('<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">')
+
+                        # Service row+column
+                        $html_content.Add('<tr>')
+                        $html_content.Add('<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;color:#666666;padding:0 0 4px 0;mso-line-height-rule:exactly;">' +
                             $service +
-                            '</td>' +
-                            '</tr>' +
-                            '<tr>' +
-                            '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:18px;line-height:22px;font-weight:bold;color:#242424;padding:0 0 6px 0;mso-line-height-rule:exactly;">' +
+                            '</td>')
+                        $html_content.Add('</tr>')
+
+                        # EventID row+column
+                        $html_content.Add('<tr>')
+                        $html_content.Add('<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:18px;line-height:22px;font-weight:bold;color:#242424;padding:0 0 6px 0;mso-line-height-rule:exactly;">' +
                             '<a id="' + $anchorId + '" name="' + $anchorId + '" target="_blank" href="' + "https://admin.cloud.microsoft/?#/servicehealth/:/alerts/$($eventId)" + '">' + $eventId + '</a>' +
-                            '</td>' +
-                            '</tr>' +
-                            '<tr>' +
-                            '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;font-weight:bold;color:#8A5A00;padding:0 0 8px 0;mso-line-height-rule:exactly;">' +
+                            '</td>')
+                        $html_content.Add('</tr>')
+
+                        # Status row+column
+                        $html_content.Add('<tr>')
+                        $html_content.Add('<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;font-weight:bold;color:#8A5A00;padding:0 0 8px 0;mso-line-height-rule:exactly;">' +
                             $status +
-                            '</td>' +
-                            '</tr>' +
-                            '<tr>' +
-                            '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:14px;line-height:18px;color:#242424;padding:0;mso-line-height-rule:exactly;">' +
+                            '</td>')
+                        $html_content.Add('</tr>')
+
+                        # Title row+column
+                        $html_content.Add('<tr>')
+                        $html_content.Add('<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:14px;line-height:18px;color:#242424;padding:0;mso-line-height-rule:exactly;">' +
                             $title +
-                            '</td>' +
-                            '</tr>' +
-                            '</table>' +
-                            '</td>' +
-                            '</tr>' +
-                            '</table>'
-                        )
+                            '</td>')
+                        $html_content.Add('</tr>')
+
+                        # Close inner table 1
+                        $html_content.Add('</table>')
+
+                        # Close outer table cell (containing the inner table)
+                        $html_content.Add('</td>')
+                        $html_content.Add('</tr>')
+
+                        # Close outer table
+                        $html_content.Add('</table>')
+
+
+                        # $html_content.Add(
+                        #     '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:none;">' +
+                        #     '<tr>' +
+                        #     # '<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:1px solid #DDDDDD;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">' +
+                        #     '<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:none;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">' +
+                        #     '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">' +
+                        #     '<tr>' +
+                        #     '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;color:#666666;padding:0 0 4px 0;mso-line-height-rule:exactly;">' +
+                        #     $service +
+                        #     '</td>' +
+                        #     '</tr>' +
+                        #     '<tr>' +
+                        #     '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:18px;line-height:22px;font-weight:bold;color:#242424;padding:0 0 6px 0;mso-line-height-rule:exactly;">' +
+                        #     '<a id="' + $anchorId + '" name="' + $anchorId + '" target="_blank" href="' + "https://admin.cloud.microsoft/?#/servicehealth/:/alerts/$($eventId)" + '">' + $eventId + '</a>' +
+                        #     '</td>' +
+                        #     '</tr>' +
+                        #     '<tr>' +
+                        #     '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;font-weight:bold;color:#8A5A00;padding:0 0 8px 0;mso-line-height-rule:exactly;">' +
+                        #     $status +
+                        #     '</td>' +
+                        #     '</tr>' +
+                        #     '<tr>' +
+                        #     '<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:14px;line-height:18px;color:#242424;padding:0;mso-line-height-rule:exactly;">' +
+                        #     $title +
+                        #     '</td>' +
+                        #     '</tr>' +
+                        #     '</table>' +
+                        #     '</td>' +
+                        #     '</tr>' +
+                        #     '</table>'
+                        # )
 
                         # $html_content.Add('<hr>')
 
@@ -269,7 +320,6 @@ function ConvertTo-M365ServiceHealthReportObject {
                         $impactDescription = ConvertTo-HtmlEncodedText -Text $item.ImpactDescription
 
                         # $html_content.Add('<table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0">')
-
 
                         # Outer table for left color
                         $html_content.Add(
