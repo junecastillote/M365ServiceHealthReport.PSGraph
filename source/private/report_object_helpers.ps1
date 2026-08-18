@@ -235,3 +235,17 @@ function Get-ServiceHealthPriority {
 
     return 4
 }
+
+function Format-ServiceHealthDuration {
+            [CmdletBinding()]
+            param(
+                [Parameter(Mandatory)]
+                [timespan]$TimeSpan
+            )
+
+            if ($TimeSpan.TotalDays -ge 1) {
+                return '{0} days {1} hours' -f $TimeSpan.Days, $TimeSpan.Hours
+            }
+
+            return '{0} hours {1} minutes' -f $TimeSpan.Hours, $TimeSpan.Minutes
+        }

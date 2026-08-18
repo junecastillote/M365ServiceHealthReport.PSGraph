@@ -28,19 +28,7 @@ function New-ServiceHealthAlertCardJson {
             return '{0:MMMM dd, yyyy hh:mm tt} UTC' -f [datetime]$DateTime
         }
 
-        function Format-ServiceHealthDuration {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [timespan]$TimeSpan
-            )
 
-            if ($TimeSpan.TotalDays -ge 1) {
-                return '{0} days {1} hours' -f $TimeSpan.Days, $TimeSpan.Hours
-            }
-
-            return '{0} hours {1} minutes' -f $TimeSpan.Hours, $TimeSpan.Minutes
-        }
 
         function Format-ServiceHealthText {
             [CmdletBinding()]
@@ -244,7 +232,7 @@ function New-ServiceHealthAlertCardJson {
                                 items                    = @(
                                     [pscustomobject][ordered]@{
                                         type     = 'TextBlock'
-                                        text     = $OrganizationName + ' · ' + $Issue.Service
+                                        text     = $OrganizationName + ' | ' + $Issue.Service
                                         wrap     = $true
                                         size     = 'Small'
                                         weight   = 'Bolder'
@@ -317,11 +305,11 @@ function New-ServiceHealthAlertCardJson {
                                                 $toggleUpId
                                             )
                                         }
-                                        fallback     = [pscustomobject][ordered]@{
-                                            type = 'TextBlock'
-                                            text = '▼'
-                                            wrap = $true
-                                        }
+                                        # fallback     = [pscustomobject][ordered]@{
+                                        #     type = 'TextBlock'
+                                        #     text = '▼'
+                                        #     wrap = $true
+                                        # }
                                     },
                                     [pscustomobject][ordered]@{
                                         type         = 'Icon'
@@ -338,12 +326,12 @@ function New-ServiceHealthAlertCardJson {
                                                 $toggleUpId
                                             )
                                         }
-                                        fallback     = [pscustomobject][ordered]@{
-                                            type      = 'TextBlock'
-                                            text      = '▲'
-                                            wrap      = $true
-                                            isVisible = $false
-                                        }
+                                        # fallback     = [pscustomobject][ordered]@{
+                                        #     type      = 'TextBlock'
+                                        #     text      = '▲'
+                                        #     wrap      = $true
+                                        #     isVisible = $false
+                                        # }
                                     }
                                 )
                             }

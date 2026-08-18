@@ -189,22 +189,19 @@ function ConvertTo-M365ServiceHealthReportObject {
                             'border-bottom:1px solid #DDDDDD'
                             'border-left:6px solid ' + $statusColor
                             'mso-border-left-alt:6px solid ' + $statusColor
-                            'padding:7px 8px'
+                            'color:' + $statusColor
+                            'padding:7px 8px;'
                         ) -join ';'
+
+                        if (!$item.IsResolved) {
+                            $statusCellStyle = "$($statusCellStyle)font-weight:bold;"
+                        }
 
                         $html_content.Add(
                             '<tr>' +
                             '<td style="text-align:left;white-space:nowrap;border:1px solid #DDDDDD;padding:5px 8px;">&nbsp;&nbsp;&#8227;<a href="#' + $anchorId + '">' + $eventId + '</a></td>' +
                             '<td style="border:1px solid #DDDDDD;padding:7px 8px;">' + $classification + '</td>' +
-                            # '<td style="' + $statusCellStyle + '">' + $status + '</td>' +
-                            '<td style="' + $statusCellStyle + '">' + $(
-                                if ($item.IsResolved) {
-                                    "Resolved | $($status)"
-                                }
-                                else {
-                                    "Active | $($status)"
-                                }
-                            ) + '</td>' +
+                            '<td style="' + $statusCellStyle + '">' + $status + '</td>' +
                             '<td style="border:1px solid #DDDDDD;padding:7px 8px;white-space:nowrap;">' + $lastUpdated + '</td>' +
                             '<td style="border:1px solid #DDDDDD;padding:7px 8px;">' + $title + '</td>' +
                             '</tr>'
@@ -215,20 +212,23 @@ function ConvertTo-M365ServiceHealthReportObject {
 
                 $html_content.Add('<table class="section-table" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th><a id="issues" name="issues">Issues</a></th></tr></table>')
                 $html_content.Add('<hr>')
+
                 # Individual issues table
                 foreach ($group in $itemGroup) {
-
                     foreach ($item in ($issue_collection | Where-Object { $_.Service -eq $group.Name } | Sort-Object LastModifiedDateTime -Descending)) {
                         $anchorId = ConvertTo-HtmlAnchorId -Value $item.Id
                         $eventId = ConvertTo-HtmlEncodedText -Text $item.Id
                         $service = ConvertTo-HtmlEncodedText -Text $item.Service
                         $title = ConvertTo-HtmlEncodedText -Text $item.Title
                         $status = ConvertTo-HtmlEncodedText -Text $item.Status
-                        $leftColor = if ($item.IsResolved) {
-                            '#107C10'
+
+                        if ($item.IsResolved) {
+                            $statusColor = '#107C10'
+                            $statusFontSize = '12px'
                         }
                         else {
-                            '#D13438'
+                            $statusColor = '#D13438'
+                            $statusFontSize = '18px'
                         }
 
                         # =====================================
@@ -238,13 +238,13 @@ function ConvertTo-M365ServiceHealthReportObject {
                         $html_content.Add('<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border:none;">')
                         $html_content.Add('<tr>')
                         # Left border color
-                        $html_content.Add('<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:none;border-left:6px solid ' + $leftColor + ';mso-border-left-alt:6px solid ' + $leftColor + ';padding:10px 12px 10px 12px;">')
+                        $html_content.Add('<td style="background-color:#F3F2F1;border-top:1px solid #DDDDDD;border-right:1px solid #DDDDDD;border-bottom:none;border-left:6px solid ' + $statusColor + ';mso-border-left-alt:6px solid ' + $statusColor + ';padding:10px 12px 10px 12px;">')
                         # Inner table 1
                         $html_content.Add('<table width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">')
 
                         # Service row+column
                         $html_content.Add('<tr>')
-                        $html_content.Add('<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;color:#666666;padding:0 0 4px 0;mso-line-height-rule:exactly;">' +
+                        $html_content.Add('<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:14px;line-height:16px;color:#666666;padding:0 0 4px 0;mso-line-height-rule:exactly;">' +
                             $service +
                             '</td>')
                         $html_content.Add('</tr>')
@@ -260,8 +260,13 @@ function ConvertTo-M365ServiceHealthReportObject {
 
                         # Status row+column
                         $html_content.Add('<tr>')
-                        $html_content.Add('<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:12px;line-height:16px;font-weight:bold;color:#8A5A00;padding:0 0 8px 0;mso-line-height-rule:exactly;">' +
-                            $status +
+                        $html_content.Add('<td style="font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;font-size:' + $statusFontSize + ';line-height:16px;font-weight:bold;color:' + $statusColor + ';padding:0 0 8px 0;mso-line-height-rule:exactly;">' +
+                            $(if ($item.IsResolved) {
+                                    "Resolved | $($status)"
+                                }
+                                else {
+                                    "Active | $($status)"
+                                }) +
                             '</td>')
                         $html_content.Add('</tr>')
 
@@ -292,7 +297,22 @@ function ConvertTo-M365ServiceHealthReportObject {
                                     (Format-ServiceHealthDate -DateTime $item.EndDateTime)
                                 ) + '</td></tr>')
                         }
-                        $html_content.Add('<tr><th style="width:120px;border-left:none;">Last Updated</th><td style="border-right:none;">' + (Format-ServiceHealthDate -DateTime $item.LastModifiedDateTime) + '</td></tr>')
+
+                        if ($item.IsResolved -and $item.EndDateTime) {
+                            $duration = New-TimeSpan `
+                                -Start $item.StartDateTime `
+                                -End $item.EndDateTime
+
+                            $html_content.Add('<tr><th style="width:120px;border-left:none;">Duration</th><td style="border-right:none;">' + (Format-ServiceHealthDuration -TimeSpan $duration) + '</td></tr>')
+                        }
+                        else {
+                            $age = New-TimeSpan `
+                                -Start $item.StartDateTime `
+                                -End (Get-Date).ToUniversalTime()
+
+                            $html_content.Add('<tr><th style="width:120px;border-left:none;">Age</th><td style="border-right:none;">' + (Format-ServiceHealthDuration -TimeSpan $Age) + '</td></tr>')
+                        }
+
 
                         $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $item
                         $html_content.Add('<tr><th style="width:120px;border-bottom:none;border-left:none;">Update</th><td style="border-right:none;border-bottom:none;">' + $latestMessage + '</td></tr>')
