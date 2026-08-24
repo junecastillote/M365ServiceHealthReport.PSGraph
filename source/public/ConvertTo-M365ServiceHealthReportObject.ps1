@@ -291,13 +291,6 @@ function ConvertTo-M365ServiceHealthReportObject {
                         $html_content.Add('<table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0">')
                         $html_content.Add('<tr><th style="width:120px;border-top:none;border-left:none;">Classification</th><td style="border-top:none;border-right:none;">' + $classification + '</td></tr>')
                         $html_content.Add('<tr><th style="width:120px;border-left:none;">User Impact</th><td style="border-right:none;">' + $impactDescription + '</td></tr>')
-                        $html_content.Add('<tr><th style="width:120px;border-left:none;">Start Time</th><td style="border-right:none;">' + (Format-ServiceHealthDate -DateTime $item.StartDateTime) + '</td></tr>')
-                        if ($item.endDateTime) {
-                            $html_content.Add('<tr><th style="width:120px;border-left:none;">End Time</th><td style="border-right:none;">' + $(
-                                    (Format-ServiceHealthDate -DateTime $item.EndDateTime)
-                                ) + '</td></tr>')
-                        }
-
                         if ($item.IsResolved -and $item.EndDateTime) {
                             $duration = New-TimeSpan `
                                 -Start $item.StartDateTime `
@@ -312,6 +305,14 @@ function ConvertTo-M365ServiceHealthReportObject {
 
                             $html_content.Add('<tr><th style="width:120px;border-left:none;">Age</th><td style="border-right:none;">' + (Format-ServiceHealthDuration -TimeSpan $Age) + '</td></tr>')
                         }
+                        $html_content.Add('<tr><th style="width:120px;border-left:none;">Start Time</th><td style="border-right:none;">' + (Format-ServiceHealthDate -DateTime $item.StartDateTime) + '</td></tr>')
+                        if ($item.endDateTime) {
+                            $html_content.Add('<tr><th style="width:120px;border-left:none;">End Time</th><td style="border-right:none;">' + $(
+                                    (Format-ServiceHealthDate -DateTime $item.EndDateTime)
+                                ) + '</td></tr>')
+                        }
+
+
 
 
                         $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $item
