@@ -314,10 +314,13 @@ function ConvertTo-M365ServiceHealthReportObject {
                                 ) + '</td></tr>')
                         }
 
-
-
-
                         $latestMessage = Get-ServiceHealthLatestMessageHtml -Issue $item
+
+                        if ($item.Status -eq 'Post Incident Review Published') {
+                            $pirDownloadURL = 'https://admin.cloud.microsoft/admin/api/servicehealth/postincidentreport?url=https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/issues(%27' + [System.Uri]::EscapeDataString($item.Id) + '%27)/incidentreport'
+                            $latestMessage = $latestMessage + "<br><br>" + '<a href="' + $pirDownloadURL + '" target="_blank">Download post-incident report</a>'
+                        }
+
                         $html_content.Add('<tr><th style="width:120px;border-bottom:none;border-left:none;">Update</th><td style="border-right:none;border-bottom:none;">' + $latestMessage + '</td></tr>')
 
                         # Close inner table 2
