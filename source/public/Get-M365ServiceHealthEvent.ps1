@@ -17,10 +17,14 @@ function Get-M365ServiceHealthEvent {
         [Parameter(Mandatory, ParameterSetName = 'StartFromLastSuccessfulRun')]
         [switch]$StartFromLastSuccessfulRun,
 
+        [Parameter(Mandatory, ParameterSetName = 'StartFromRunId')]
+        [string]$StartFromRunId,
+
         [Parameter(ParameterSetName = 'Default')]
         [Parameter(ParameterSetName = 'PastDays')]
         [Parameter(ParameterSetName = 'LastModifiedDateTime')]
         [Parameter(Mandatory, ParameterSetName = 'StartFromLastSuccessfulRun')]
+        [Parameter(Mandatory, ParameterSetName = 'StartFromRunId')]
         [string]$RunHistoryFileName,
 
         [Parameter(ParameterSetName = 'Default')]
@@ -46,6 +50,10 @@ function Get-M365ServiceHealthEvent {
         [string[]]$Service
     )
 
+    # Get-Variable | ForEach-Object { Write-Debug "VAR: $($_.Name) | $($_.Value)" }
+
+    $currentRunId = [guid]::NewGuid().Guid
+    Write-Debug "Current RunId: $($currentRunId)"
     $now = ([System.DateTime]::Now)
 
     # Initialize the filter (empty)
@@ -76,8 +84,22 @@ function Get-M365ServiceHealthEvent {
     # Add StartFromLastSuccessfulRun filter
     if ($PSBoundParameters.ContainsKey('StartFromLastSuccessfulRun')) {
         $LastUpdatedTime = GetLastSuccessfulRunTime
-        # $start_date = ($LastUpdatedTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-        $start_date = ($LastUpdatedTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mmZ')
+        $start_date = ($LastUpdatedTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:00Z')
+        $filter += "LastModifiedDateTime ge $($start_date)"
+        Write-Debug "Filter (StartFromLastSuccessfulRun) - $start_date"
+    }
+
+    # Add StartFromRunId filter
+    if ($PSBoundParameters.ContainsKey('StartFromRunId')) {
+        $StartFromRunId = $StartFromRunId
+        # Write-Debug "OldRunId: $($StartFromRunId)"
+        Write-Debug "Finding runtime by RunId [$($StartFromRunId)]"
+        $LastUpdatedTime = GetRunTimeByRunId
+        if (-not $LastUpdatedTime) {
+            "RunId [$($StartFromRunId)] does not exist in history." | SayInfo
+            return $null
+        }
+        $start_date = ($LastUpdatedTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:00Z')
         $filter += "LastModifiedDateTime ge $($start_date)"
         Write-Debug "Filter (StartFromLastSuccessfulRun) - $start_date"
     }
@@ -107,7 +129,6 @@ function Get-M365ServiceHealthEvent {
         $service_filter = @()
         foreach ($item in $Service) {
             if ($item -notin $valid_service_list) {
-                SayError "'$item' is not a valid service name."
                 $isValid = $false
                 $invalid_service_list += $item
             }
@@ -123,10 +144,10 @@ function Get-M365ServiceHealthEvent {
         }
         if (!$isValid) {
             # Terminate if at least one of the service names is not valid.
-            SayError "Accepted service names: $($valid_service_list -join ";")"
             WriteToHistoryFile NotOK "Invalid Service [$($invalid_service_list -join ";")] specified."
-            return $null
+            throw "The service names specified are not valid ($($invalid_service_list -join ", ")). Only the following service names are valid and accepted ($($valid_service_list -join ", "))"
         }
+
         $filter += "($($service_filter -join ' or '))"
         Write-Debug "Filter (Service) - $($included_service_list -join ",")"
     }
@@ -135,7 +156,7 @@ function Get-M365ServiceHealthEvent {
         switch ($true) {
             { $filter } {
                 # Get issues with filter
-                Write-Verbose ($filter -join ' and ')
+                Write-Debug "Filter string = $($filter -join ' and ')"
                 $issue_collection = @(Get-MgServiceAnnouncementIssue -Filter ($filter -join ' and ') -All -ErrorAction Stop)
             }
             { !$filter } {
@@ -163,8 +184,10 @@ function Get-M365ServiceHealthEvent {
             # $issue_collection | Add-Member -MemberType NoteProperty -Name OrganizationName -Value (Get-MgOrganization).DisplayName
             $issue_collection | Add-Member -MemberType NoteProperty -Name ReportStartDate -Value (Get-Date $start_date).ToUniversalTime()
             $issue_collection | Add-Member -MemberType NoteProperty -Name ReportGeneratedDate -Value $now.ToUniversalTime()
+            $issue_collection | Add-Member -MemberType NoteProperty -Name RunId -Value $currentRunId
 
-            WriteToHistoryFile OK "Result: $($issue_collection.Count)"
+            WriteToHistoryFile OK "Count: $($issue_collection.Count)"
+            Write-Debug "Event count: $($issue_collection.Count)"
             $issue_collection
         }
         else {
@@ -172,7 +195,7 @@ function Get-M365ServiceHealthEvent {
         }
     }
     catch {
-        SayError $_
         WriteToHistoryFile NotOK "Failed to retrieve issues"
+        throw "Failed to retrieve issues. $($_.Exception.Message)"
     }
 }

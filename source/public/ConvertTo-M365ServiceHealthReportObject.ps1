@@ -40,8 +40,9 @@ function ConvertTo-M365ServiceHealthReportObject {
                 $null = New-Item -ItemType File -Path $HtmlReportFileName -Force -ErrorAction Stop
             }
             catch {
-                SayError $_
-                continue
+                throw "Failed to create the HTML report file [$($HtmlReportFileName)]. $($_.Exception.Message)"
+                # SayError $_
+                # continue
             }
         }
 
@@ -50,8 +51,9 @@ function ConvertTo-M365ServiceHealthReportObject {
                 $null = New-Item -ItemType File -Path $TeamsCardFileName -Force -ErrorAction Stop
             }
             catch {
-                SayError $_
-                continue
+                throw "Failed to create the Teams Adaptive Card JSON file [$($TeamsCardFileName)]. $($_.Exception.Message)"
+                # SayError $_
+                # continue
             }
         }
 
