@@ -1,4 +1,4 @@
-Function Get-M365ServiceHealthEvent {
+function Get-M365ServiceHealthEvent {
     [CmdletBinding()]
     [Alias('Get-M365ServiceHealthIssue', 'Get-M365ServiceHealthAnnouncement')]
     param (
@@ -54,6 +54,7 @@ Function Get-M365ServiceHealthEvent {
     # Add Id filter
     if ($PSBoundParameters.ContainsKey('Id')) {
         $filter += "Id eq '$($Id)'"
+        Write-Debug "Filter (Id) - $Id"
     }
 
     $start_date = ([System.DateTime]::MinValue).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -62,24 +63,29 @@ Function Get-M365ServiceHealthEvent {
     if ($PSBoundParameters.ContainsKey('PastDays')) {
         $start_date = (($now).AddDays(-$PastDays)).ToUniversalTime().ToString('yyyy-MM-ddT00:00:00Z')
         $filter += "LastModifiedDateTime ge $($start_date)"
+        Write-Debug "Filter (PastDays) - $PastDays, LastModifiedDateTime - $start_date"
     }
 
     # Add LastModifiedDateTime filter
     if ($PSBoundParameters.ContainsKey('LastModifiedDateTime')) {
         $start_date = ($LastModifiedDateTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
         $filter += "LastModifiedDateTime ge $($start_date)"
+        Write-Debug "Filter (LastModifiedDateTime) - $start_date"
     }
 
     # Add StartFromLastSuccessfulRun filter
     if ($PSBoundParameters.ContainsKey('StartFromLastSuccessfulRun')) {
         $LastUpdatedTime = GetLastSuccessfulRunTime
-        $start_date = ($LastUpdatedTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+        # $start_date = ($LastUpdatedTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+        $start_date = ($LastUpdatedTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mmZ')
         $filter += "LastModifiedDateTime ge $($start_date)"
+        Write-Debug "Filter (StartFromLastSuccessfulRun) - $start_date"
     }
 
     # Add Classification filter
     if ($PSBoundParameters.ContainsKey('Classification')) {
         $filter += "Classification eq '$($Classification)'"
+        Write-Debug "Filter (Classification) - $Classification"
     }
 
     # Add IsResolved filter
@@ -88,6 +94,7 @@ Function Get-M365ServiceHealthEvent {
             'Resolved' { $filter += 'IsResolved eq true' }
             'Unresolved' { $filter += 'IsResolved eq false' }
         }
+        Write-Debug "Filter (Status) - $Status"
     }
 
     # Add Service filter
@@ -96,6 +103,7 @@ Function Get-M365ServiceHealthEvent {
         # Retrieve all valid service names list.
         $valid_service_list = @((Get-MgServiceAnnouncementHealthOverview -All | Sort-Object Service).Service)
         $invalid_service_list = @()
+        $included_service_list = @()
         $service_filter = @()
         foreach ($item in $Service) {
             if ($item -notin $valid_service_list) {
@@ -104,6 +112,12 @@ Function Get-M365ServiceHealthEvent {
                 $invalid_service_list += $item
             }
             else {
+                $service_name = ($valid_service_list | Where-Object { $_ -eq $item })
+                if (-not ($service_name -ceq $item)) {
+                    Write-Debug "Correcting service name case from ($($item)) to ($($service_name))"
+                    $item = $service_name
+                }
+                $included_service_list += $item
                 $service_filter += "Service eq '$item'"
             }
         }
@@ -114,6 +128,7 @@ Function Get-M365ServiceHealthEvent {
             return $null
         }
         $filter += "($($service_filter -join ' or '))"
+        Write-Debug "Filter (Service) - $($included_service_list -join ",")"
     }
 
     try {
