@@ -1,4 +1,4 @@
-Function CreateHistoryFile {
+function CreateHistoryFile {
     [CmdletBinding()]
     param ()
 
@@ -15,7 +15,7 @@ Function CreateHistoryFile {
     }
 }
 
-Function GetLastSuccessfulRunTime {
+function GetLastSuccessfulRunTime {
     [CmdletBinding()]
     [OutputType([datetime])]
     param (
@@ -27,7 +27,7 @@ Function GetLastSuccessfulRunTime {
     }
 }
 
-Function WriteToHistoryFile {
+function WriteToHistoryFile {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
@@ -39,7 +39,12 @@ Function WriteToHistoryFile {
 
     if ($RunHistoryFileName) {
         CreateHistoryFile
-        "$("{0:yyyy-MM-dd H:mm}" -f ([System.DateTime]::Now)),$($Result),$($Note)" | Add-Content -Path $RunHistoryFileName -Force -Confirm:$false
+        [PSCustomObject]@{
+            # RunTime = "{0:yyyy-MM-dd H:mm}" -f ([System.DateTime]::Now)
+            RunTime = "{0:yyyy-MM-ddTHH:mm:sszzzz}" -f ([System.DateTime]::Now)
+            Result  = $Result
+            Note    = $Note
+        } | Export-Csv -Append -Path $RunHistoryFileName -Force -Confirm:$false
     }
 }
 
