@@ -75,7 +75,7 @@ function Get-ServiceHealthLatestMessageHtml {
     $parsedText = Get-ServiceHealthPortalStyleUpdateText -Text $messageText
 
     $encodedMessage = ConvertTo-HtmlEncodedText -Text $parsedText
-    # $encodedMessage = $encodedMessage -replace "(\r\n|\n|\r)", '<br />'
+    $encodedMessage = $encodedMessage -replace "(\r\n|\n|\r)", '<br>'
 
     return $encodedMessage
 }
