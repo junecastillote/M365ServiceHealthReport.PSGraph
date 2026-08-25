@@ -120,11 +120,6 @@ function ConvertTo-M365ServiceHealthReportObject {
                 $html_content.Add('</style>')
                 $html_content.Add('</head><body>')
 
-                # $classification = Get-ServiceHealthClassificationHtml `
-                #             -Classification $item.Classification `
-                #             -YellowDotSource $yellowDotDataUri `
-                #             -RedDotSource $redDotDataUri
-
                 $incidentClass = (Get-ServiceHealthClassificationHtml `
                         -Classification 'Incident' `
                         -YellowDotSource $yellowDotDataUri `
@@ -149,7 +144,7 @@ function ConvertTo-M365ServiceHealthReportObject {
                     '<div class="report-header-summary">' +
                     '<strong>Total Events:</strong> ' + $totalIssues +
                     ' &nbsp;|&nbsp; <strong>Active:</strong> ' + $activeIssues +
-                    ' &nbsp;|&nbsp; <strong>Resolved:</strong> ' + $resolvedIssues + '<br>' +
+                    ' &nbsp;|&nbsp; <strong>Resolved:</strong> ' + $resolvedIssues + '<br>' + '<strong>Classification:</strong> &nbsp;|&nbsp; ' +
                     $incidentClass + ' ' + $incidentCount +
                     ' &nbsp;|&nbsp; ' +
                     $advisoryClass + ' ' + $advisoryCount +
@@ -207,7 +202,8 @@ function ConvertTo-M365ServiceHealthReportObject {
                             '#107C10'
                         }
                         else {
-                            '#D13438'
+                            # '#D13438'
+                            '#CA5010'
                         }
 
                         $statusCellStyle = @(
@@ -254,7 +250,8 @@ function ConvertTo-M365ServiceHealthReportObject {
                             $statusFontSize = '12px'
                         }
                         else {
-                            $statusColor = '#D13438'
+                            # $statusColor = '#D13438'
+                            $statusColor = '#CA5010'
                             $statusFontSize = '18px'
                         }
 
