@@ -9,7 +9,11 @@ function Send-M365ServiceHealthReportToTeams {
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [string[]]$TeamsWebhookUrl
+        [string[]]$TeamsWebhookUrl,
+
+        [Parameter()]
+        [switch]
+        $PostBatchHeader
     )
 
     begin {
@@ -170,22 +174,26 @@ function Send-M365ServiceHealthReportToTeams {
             $payloadCount = $teamsCardPayloads.Count
 
             # Post batch header
-            foreach ($url in $TeamsWebhookUrl) {
+            if ($PostBatchHeader) {
+                foreach ($url in $TeamsWebhookUrl) {
 
-                SayInfo "Posting Teams alert batch header."
+                    SayInfo "Posting Teams alert batch header."
 
-                try {
-                    Invoke-RestMethod `
-                        -Uri $url `
-                        -Method POST `
-                        -Body $batchHeaderCard `
-                        -ContentType 'application/json' `
-                        -ErrorAction Stop
-                }
-                catch {
-                    SayError "Failed to post Teams alert batch header.`n$star_divider`n$_`n$star_divider"
+                    try {
+                        Invoke-RestMethod `
+                            -Uri $url `
+                            -Method POST `
+                            -Body $batchHeaderCard `
+                            -ContentType 'application/json' `
+                            -ErrorAction Stop
+                    }
+                    catch {
+                        SayError "Failed to post Teams alert batch header.`n$star_divider`n$_`n$star_divider"
+                    }
                 }
             }
+
+            Start-Sleep -Seconds 2
 
             foreach ($payload in $teamsCardPayloads) {
                 $payloadIndex++
@@ -204,6 +212,7 @@ function Send-M365ServiceHealthReportToTeams {
 
                 # Post individual alerts
                 foreach ($url in $TeamsWebhookUrl) {
+
                     SayInfo "Posting Teams alert card [$payloadIndex/$payloadCount] to Teams webhook. Payload size: $payloadSizeBytes bytes."
 
                     $params = @{
