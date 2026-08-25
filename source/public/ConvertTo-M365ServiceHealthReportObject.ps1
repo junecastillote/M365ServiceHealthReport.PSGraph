@@ -370,7 +370,8 @@ function ConvertTo-M365ServiceHealthReportObject {
                     $teams_card_content.Add(
                         (New-ServiceHealthAlertCardJson `
                             -Issue $issue `
-                            -OrganizationName $OrganizationName)
+                            -OrganizationName $OrganizationName `
+                            -RunId $issue.RunId)
                     )
                 }
 
@@ -386,6 +387,7 @@ function ConvertTo-M365ServiceHealthReportObject {
             # create the result object
             $result = [PSCustomObject]([ordered]@{
                     PSTypeName          = 'M365ServiceHealthReport'
+                    RunId               = $issue_collection[0].RunId
                     OrganizationName    = $OrganizationName
                     Title               = $report_title
                     ReportGeneratedDate = $issue_collection[0].ReportGeneratedDate
@@ -418,7 +420,7 @@ function ConvertTo-M365ServiceHealthReportObject {
                     })
             }
 
-            $visible_properties = [string[]]@('Title', 'ReportGeneratedDate', 'ReportStartDate', 'Issues', 'HtmlFilename', 'TeamsCardFileName')
+            $visible_properties = [string[]]@('RunId', 'Title', 'ReportGeneratedDate', 'ReportStartDate', 'Issues', 'HtmlFilename', 'TeamsCardFileName')
             [Management.Automation.PSMemberInfo[]]$default_properties = [System.Management.Automation.PSPropertySet]::new('DefaultDisplayPropertySet', $visible_properties)
             $result | Add-Member -MemberType MemberSet -Name PSStandardMembers -Value $default_properties
             return $result

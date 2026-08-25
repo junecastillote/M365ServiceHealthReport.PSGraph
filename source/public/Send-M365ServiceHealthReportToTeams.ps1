@@ -27,6 +27,10 @@ function Send-M365ServiceHealthReportToTeams {
                 $Report
             )
 
+            # $shortRunId = $Report.RunId.Substring(0, 8)
+            $shortRunId = $Report.RunId.Substring(0, 8).ToUpperInvariant()
+
+
             $summary = $Report.GetSummary()
 
             $incidentCount = ($Report.Issues | Where-Object {
@@ -77,6 +81,14 @@ function Send-M365ServiceHealthReportToTeams {
                                             wrap                = $true
                                             horizontalAlignment = 'Center'
                                             isSubtle            = $true
+                                        },
+                                        @{
+                                            type                = 'TextBlock'
+                                            text                = "Run ID: $shortRunId"
+                                            wrap                = $true
+                                            horizontalAlignment = 'Center'
+                                            isSubtle            = $true
+                                            spacing             = 'None'
                                         }
                                     )
                                 },
@@ -173,11 +185,14 @@ function Send-M365ServiceHealthReportToTeams {
             $payloadIndex = 0
             $payloadCount = $teamsCardPayloads.Count
 
-            # Post batch header
-            if ($PostBatchHeader) {
-                foreach ($url in $TeamsWebhookUrl) {
+            foreach ($url in $TeamsWebhookUrl) {
 
-                    SayInfo "Posting Teams alert batch header."
+                #
+                # Post batch header
+                #
+                if ($PostBatchHeader) {
+
+                    SayInfo "RunId [$($report.RunId)] - Posting Teams alert batch header."
 
                     try {
                         Invoke-RestMethod `
@@ -188,32 +203,31 @@ function Send-M365ServiceHealthReportToTeams {
                             -ErrorAction Stop
                     }
                     catch {
-                        SayError "Failed to post Teams alert batch header.`n$star_divider`n$_`n$star_divider"
+                        SayError "RunId [$($report.RunId)] - Failed to post Teams alert batch header.`n$star_divider`n$_`n$star_divider"
                     }
-                }
-            }
 
-            Start-Sleep -Seconds 2
-
-            foreach ($payload in $teamsCardPayloads) {
-                $payloadIndex++
-
-                if ([System.String]::IsNullOrWhiteSpace($payload)) {
-                    SayError "Skipping empty Teams card payload [$payloadIndex/$payloadCount]."
-                    continue
+                    Start-Sleep -Seconds 2
                 }
 
-                if (!(Test-JsonPayload -Json $payload)) {
-                    SayError "Skipping invalid Teams card JSON payload [$payloadIndex/$payloadCount]."
-                    continue
-                }
+                $payloadIndex = 0
 
-                $payloadSizeBytes = Get-Utf8ByteCount -Text $payload
+                foreach ($payload in $teamsCardPayloads) {
 
-                # Post individual alerts
-                foreach ($url in $TeamsWebhookUrl) {
+                    $payloadIndex++
 
-                    SayInfo "Posting Teams alert card [$payloadIndex/$payloadCount] to Teams webhook. Payload size: $payloadSizeBytes bytes."
+                    if ([System.String]::IsNullOrWhiteSpace($payload)) {
+                        SayError "Skipping empty Teams card payload [$payloadIndex/$payloadCount]."
+                        continue
+                    }
+
+                    if (!(Test-JsonPayload -Json $payload)) {
+                        SayError "Skipping invalid Teams card JSON payload [$payloadIndex/$payloadCount]."
+                        continue
+                    }
+
+                    $payloadSizeBytes = Get-Utf8ByteCount -Text $payload
+
+                    SayInfo "RunId [$($report.RunId)] - Posting Teams alert card [$payloadIndex/$payloadCount]. Payload size: $payloadSizeBytes bytes."
 
                     $params = @{
                         Uri         = $url
@@ -228,6 +242,8 @@ function Send-M365ServiceHealthReportToTeams {
                     catch {
                         SayError "Failed to post Teams alert card [$payloadIndex/$payloadCount].`n$star_divider`n$_`n$star_divider"
                     }
+
+                    Start-Sleep -Milliseconds 500
                 }
             }
         }

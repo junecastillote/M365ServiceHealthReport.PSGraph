@@ -8,7 +8,10 @@ function New-ServiceHealthAlertCardJson {
         $Issue,
 
         [Parameter(Mandatory)]
-        [string]$OrganizationName
+        [string]$OrganizationName,
+
+        [Parameter(Mandatory)]
+        [string]$RunId
     )
 
     begin {
@@ -205,10 +208,10 @@ function New-ServiceHealthAlertCardJson {
             $lastUpdatedText = 'Updated: ' + (Format-ServiceHealthCardDate -DateTime $Issue.LastModifiedDateTime)
 
             [pscustomobject][ordered]@{
-                type         = 'Container'
-                style        = $containerStyle
-                bleed        = $true
-                showBorder   = $true
+                type       = 'Container'
+                style      = $containerStyle
+                bleed      = $true
+                showBorder = $true
                 # selectAction = [pscustomobject][ordered]@{
                 #     type           = 'Action.ToggleVisibility'
                 #     targetElements = @(
@@ -218,7 +221,7 @@ function New-ServiceHealthAlertCardJson {
                 #         $toggleUpId
                 #     )
                 # }
-                items        = @(
+                items      = @(
                     [pscustomobject][ordered]@{
                         type    = 'ColumnSet'
                         id      = 'colSet_' + $elementId
@@ -238,7 +241,15 @@ function New-ServiceHealthAlertCardJson {
                                         weight   = 'Bolder'
                                         isSubtle = $true
                                         spacing  = 'None'
-                                    }
+                                    },
+                                    [pscustomobject][ordered]@{
+                                        type     = 'TextBlock'
+                                        text     = 'Run ID: ' + $RunId.Substring(0, 8).ToUpperInvariant()
+                                        wrap     = $true
+                                        size     = 'Small'
+                                        isSubtle = $true
+                                        spacing  = 'None'
+                                    },
                                     [pscustomobject][ordered]@{
                                         type    = 'TextBlock'
                                         text    = $classificationText

@@ -173,6 +173,7 @@ function Get-M365ServiceHealthEvent {
 
     $currentRunId = [guid]::NewGuid().Guid
     Write-Debug "Current RunId: $($currentRunId)"
+    SayInfo "RunId: $($currentRunId)"
     $now = ([System.DateTime]::Now)
 
     # Initialize the filter (empty)
