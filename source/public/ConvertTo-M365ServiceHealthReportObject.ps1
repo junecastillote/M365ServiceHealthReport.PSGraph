@@ -99,6 +99,12 @@ function ConvertTo-M365ServiceHealthReportObject {
                 $totalIssues = $issue_collection.Count
                 $resolvedIssues = ($issue_collection | Where-Object { $_.IsResolved }).Count
                 $activeIssues = ($issue_collection | Where-Object { !$_.IsResolved }).Count
+                $incidentCount = ($issue_collection | Where-Object {
+                        $_.Classification -eq 'Incident'
+                    }).Count
+                $advisoryCount = ($issue_collection | Where-Object {
+                        $_.Classification -eq 'Advisory'
+                    }).Count
 
                 $reportGeneratedDate = Format-ServiceHealthDate -DateTime $issue_collection[0].ReportGeneratedDate
 
@@ -114,6 +120,21 @@ function ConvertTo-M365ServiceHealthReportObject {
                 $html_content.Add('</style>')
                 $html_content.Add('</head><body>')
 
+                # $classification = Get-ServiceHealthClassificationHtml `
+                #             -Classification $item.Classification `
+                #             -YellowDotSource $yellowDotDataUri `
+                #             -RedDotSource $redDotDataUri
+
+                $incidentClass = (Get-ServiceHealthClassificationHtml `
+                        -Classification 'Incident' `
+                        -YellowDotSource $yellowDotDataUri `
+                        -RedDotSource $redDotDataUri).Replace("Incident", "<strong>Incidents:</strong>").Replace('="12"', '="8"')
+
+                $advisoryClass = (Get-ServiceHealthClassificationHtml `
+                        -Classification 'Advisory' `
+                        -YellowDotSource $yellowDotDataUri `
+                        -RedDotSource $redDotDataUri).Replace("Advisory", "<strong>Advisories:</strong>").Replace('="12"', '="8"')
+
                 $html_content.Add(
                     '<table class="report-header" width="100%" cellpadding="0" cellspacing="0" border="0">' +
                     '<tr>' +
@@ -121,13 +142,17 @@ function ConvertTo-M365ServiceHealthReportObject {
                     '<div class="report-header-title">' + ($encodedReportTitle.Replace("[$($OrganizationName)] ", '')) + '</div>' +
                     '<div class="report-header-meta">' +
                     'Organization: ' + $encodedOrganizationName + '<br />' +
+                    'RunId: ' + $issue_collection[0].RunId + '<br />' +
                     'Generated: ' + $reportGeneratedDate + '<br />' +
                     $(if ($reportStartDate) { 'Report Start: ' + $reportStartDate }) +
                     '</div>' +
                     '<div class="report-header-summary">' +
                     '<strong>Total Events:</strong> ' + $totalIssues +
                     ' &nbsp;|&nbsp; <strong>Active:</strong> ' + $activeIssues +
-                    ' &nbsp;|&nbsp; <strong>Resolved:</strong> ' + $resolvedIssues +
+                    ' &nbsp;|&nbsp; <strong>Resolved:</strong> ' + $resolvedIssues + '<br>' +
+                    $incidentClass + ' ' + $incidentCount +
+                    ' &nbsp;|&nbsp; ' +
+                    $advisoryClass + ' ' + $advisoryCount +
                     '</div>' +
                     '</td>' +
                     '</tr>' +
