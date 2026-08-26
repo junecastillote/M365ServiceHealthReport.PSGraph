@@ -22,7 +22,7 @@ function Send-M365ServiceHealthReportToEmail {
     )
 
     begin {
-        $star_divider = ('*' * 70)
+        $starDivider = '*' * 70
 
         function ConvertTo-EmailAddressHashTable {
             [CmdletBinding()]
@@ -53,6 +53,7 @@ function Send-M365ServiceHealthReportToEmail {
             }
 
             $bytes = [System.IO.File]::ReadAllBytes($Path)
+
             return [System.Convert]::ToBase64String($bytes)
         }
 
@@ -95,106 +96,142 @@ function Send-M365ServiceHealthReportToEmail {
 
                 [Parameter(Mandatory)]
                 [ValidateNotNullOrEmpty()]
-                [string]$YellowDotDataUri,
-
-                [Parameter(Mandatory)]
-                [ValidateNotNullOrEmpty()]
-                [string]$RedDotDataUri
+                [object[]]$ImageMap
             )
 
             $htmlBody = $HtmlContent
 
-            $htmlBody = $htmlBody.Replace($YellowDotDataUri, 'cid:yellow-dot.png')
-            $htmlBody = $htmlBody.Replace($RedDotDataUri, 'cid:red-dot.png')
+            foreach ($image in $ImageMap) {
+                $htmlBody = $htmlBody.Replace(
+                    $image.DataUri,
+                    'cid:' + $image.ContentId
+                )
+            }
 
             return $htmlBody
         }
 
         if (!$MailTo -and !$MailCc -and !$MailBcc) {
-            throw "At least one recipient parameter is required: MailTo, MailCc, or MailBcc."
+            throw 'At least one recipient parameter is required: MailTo, MailCc, or MailBcc.'
         }
 
-        $moduleInfo = Get-Module $($MyInvocation.MyCommand.ModuleName)
+        $moduleInfo = Get-Module $MyInvocation.MyCommand.ModuleName
 
         if (!$moduleInfo) {
-            throw "Unable to determine module information for $($MyInvocation.MyCommand.ModuleName)."
+            throw "Unable to determine module information for [$($MyInvocation.MyCommand.ModuleName)]."
         }
 
-        $privatePath = Join-Path -Path $moduleInfo.ModuleBase -ChildPath 'source\private'
+        $privatePath = Join-Path `
+            -Path $moduleInfo.ModuleBase `
+            -ChildPath 'source\private'
 
-        $yellowDotPath = Join-Path -Path $privatePath -ChildPath 'yellow-dot.png'
-        $redDotPath = Join-Path -Path $privatePath -ChildPath 'red-dot.png'
+        $imageDefinitions = @(
+            [PSCustomObject][ordered]@{
+                Name = 'active.png'
+                Path = Join-Path -Path $privatePath -ChildPath 'active.png'
+            },
+            [PSCustomObject][ordered]@{
+                Name = 'resolved.png'
+                Path = Join-Path -Path $privatePath -ChildPath 'resolved.png'
+            },
+            [PSCustomObject][ordered]@{
+                Name = 'advisory.png'
+                Path = Join-Path -Path $privatePath -ChildPath 'advisory.png'
+            },
+            [PSCustomObject][ordered]@{
+                Name = 'incident.png'
+                Path = Join-Path -Path $privatePath -ChildPath 'incident.png'
+            }
+        )
 
-        $yellowDotBase64 = Get-FileBase64String -Path $yellowDotPath
-        $redDotBase64 = Get-FileBase64String -Path $redDotPath
+        $imageMap = foreach ($image in $imageDefinitions) {
+            $base64Content = Get-FileBase64String -Path $image.Path
 
-        $yellowDotDataUri = 'data:image/png;base64,' + $yellowDotBase64
-        $redDotDataUri = 'data:image/png;base64,' + $redDotBase64
+            [PSCustomObject][ordered]@{
+                Name      = $image.Name
+                Path      = $image.Path
+                ContentId = $image.Name
+                DataUri   = 'data:image/png;base64,' + $base64Content
+            }
+        }
 
         $inlineImageAttachments = @(
-            New-GraphInlineFileAttachment `
-                -Path $yellowDotPath `
-                -Name 'yellow-dot.png' `
-                -ContentId 'yellow-dot.png'
-
-            New-GraphInlineFileAttachment `
-                -Path $redDotPath `
-                -Name 'red-dot.png' `
-                -ContentId 'red-dot.png'
+            foreach ($image in $imageMap) {
+                New-GraphInlineFileAttachment `
+                    -Path $image.Path `
+                    -Name $image.Name `
+                    -ContentId $image.ContentId
+            }
         )
     }
 
     process {
-        if (
-            [System.String]::IsNullOrWhiteSpace($InputObject.HtmlContent) -or
-            $InputObject.HtmlContent -eq 'None'
-        ) {
-            SayError "The input object does not contain HTML content. Make sure the report was generated with -Format Html or without specifying -Format."
-            return
-        }
-
-        $htmlBody = Convert-ServiceHealthReportImagesToCid `
-            -HtmlContent $InputObject.HtmlContent `
-            -YellowDotDataUri $yellowDotDataUri `
-            -RedDotDataUri $redDotDataUri
-
-        $mailMessage = @{
-            Subject                = $InputObject.Title
-            Body                   = @{
-                ContentType = 'HTML'
-                Content     = $htmlBody
+        foreach ($report in $InputObject) {
+            if (
+                [System.String]::IsNullOrWhiteSpace($report.HtmlContent) -or
+                $report.HtmlContent -eq 'None'
+            ) {
+                SayError 'The input object does not contain HTML content. Make sure the report was generated with -Format Html or without specifying -Format.'
+                continue
             }
-            InternetMessageHeaders = @(
-                @{
-                    Name  = 'X-Mailer'
-                    Value = $moduleInfo.Name
+
+            $htmlBody = Convert-ServiceHealthReportImagesToCid `
+                -HtmlContent $report.HtmlContent `
+                -ImageMap $imageMap
+
+            $mailMessage = @{
+                Subject                 = $report.Title
+                Body                    = @{
+                    ContentType = 'HTML'
+                    Content     = $htmlBody
                 }
-            )
-            Attachments            = $inlineImageAttachments
-        }
+                InternetMessageHeaders  = @(
+                    @{
+                        Name  = 'X-Mailer'
+                        Value = $moduleInfo.Name
+                    },
+                    @{
+                        Name  = 'X-M365-Service-Health-RunId'
+                        Value = $report.RunId.ToString()
+                    }
+                )
+                Attachments             = $inlineImageAttachments
+            }
 
-        if ($MailTo) {
-            $mailMessage.Add('toRecipients', @(ConvertTo-EmailAddressHashTable -Address $MailTo))
-        }
+            if ($MailTo) {
+                $mailMessage.Add(
+                    'toRecipients',
+                    @(ConvertTo-EmailAddressHashTable -Address $MailTo)
+                )
+            }
 
-        if ($MailCc) {
-            $mailMessage.Add('ccRecipients', @(ConvertTo-EmailAddressHashTable -Address $MailCc))
-        }
+            if ($MailCc) {
+                $mailMessage.Add(
+                    'ccRecipients',
+                    @(ConvertTo-EmailAddressHashTable -Address $MailCc)
+                )
+            }
 
-        if ($MailBcc) {
-            $mailMessage.Add('bccRecipients', @(ConvertTo-EmailAddressHashTable -Address $MailBcc))
-        }
+            if ($MailBcc) {
+                $mailMessage.Add(
+                    'bccRecipients',
+                    @(ConvertTo-EmailAddressHashTable -Address $MailBcc)
+                )
+            }
 
-        $mailParams = @{
-            Message = $mailMessage
-            UserId  = $MailFrom
-        }
+            $mailParams = @{
+                Message = $mailMessage
+                UserId  = $MailFrom
+            }
 
-        try {
-            Send-MgUserMail @mailParams -ErrorAction Stop
-        }
-        catch {
-            SayError "Failed to send email report.`n$star_divider`n$_`n$star_divider"
+            try {
+                Send-MgUserMail @mailParams -ErrorAction Stop
+
+                SayInfo "Email report sent successfully. Run ID: $($report.RunId)"
+            }
+            catch {
+                SayError "Failed to send email report for Run ID [$($report.RunId)].`n$starDivider`n$($_.Exception.Message)`n$starDivider"
+            }
         }
     }
 }
