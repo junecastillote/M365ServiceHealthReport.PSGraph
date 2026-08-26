@@ -154,63 +154,6 @@ function Get-ImageBase64String {
     return [System.Convert]::ToBase64String($bytes)
 }
 
-function Get-ServiceHealthClassificationIconSource {
-    [CmdletBinding()]
-    param(
-        [AllowNull()]
-        [string]$Classification,
-
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$YellowDotSource,
-
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$RedDotSource
-    )
-
-    if ([System.String]::IsNullOrWhiteSpace($Classification)) {
-        return $YellowDotSource
-    }
-
-    switch ($Classification.Trim().ToLowerInvariant()) {
-        'incident' { return $RedDotSource }
-        default { return $YellowDotSource }
-    }
-}
-
-function Get-ServiceHealthClassificationHtml {
-    [CmdletBinding()]
-    param(
-        [AllowNull()]
-        [string]$Classification,
-
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$YellowDotSource,
-
-        [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [string]$RedDotSource
-    )
-
-    $classificationText = Format-ServiceHealthText -Text $Classification
-    $encodedClassification = ConvertTo-HtmlEncodedText -Text $classificationText
-
-    $iconSource = Get-ServiceHealthClassificationIconSource `
-        -Classification $classificationText `
-        -YellowDotSource $YellowDotSource `
-        -RedDotSource $RedDotSource
-
-    $altText = if ($classificationText) {
-        ConvertTo-HtmlEncodedText -Text $classificationText
-    }
-    else {
-        'Classification'
-    }
-
-    return '<img src="' + $iconSource + '" ' + 'alt="' + $altText + '"' + ' width="12" height="12">&nbsp;' + $encodedClassification
-}
 
 function Get-ServiceHealthPriority {
     [CmdletBinding()]
@@ -237,15 +180,15 @@ function Get-ServiceHealthPriority {
 }
 
 function Format-ServiceHealthDuration {
-            [CmdletBinding()]
-            param(
-                [Parameter(Mandatory)]
-                [timespan]$TimeSpan
-            )
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [timespan]$TimeSpan
+    )
 
-            if ($TimeSpan.TotalDays -ge 1) {
-                return '{0} days {1} hours' -f $TimeSpan.Days, $TimeSpan.Hours
-            }
+    if ($TimeSpan.TotalDays -ge 1) {
+        return '{0} days {1} hours' -f $TimeSpan.Days, $TimeSpan.Hours
+    }
 
-            return '{0} hours {1} minutes' -f $TimeSpan.Hours, $TimeSpan.Minutes
-        }
+    return '{0} hours {1} minutes' -f $TimeSpan.Hours, $TimeSpan.Minutes
+}
