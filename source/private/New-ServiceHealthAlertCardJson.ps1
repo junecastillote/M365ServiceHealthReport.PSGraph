@@ -469,7 +469,7 @@ function New-ServiceHealthAlertCardJson {
     }
 
     process {
-        $teamsAdaptiveCardPath = Join-Path -Path $moduleInfo.ModuleBase -ChildPath 'source\private\TeamsConsolidated.json'
+        $teamsAdaptiveCardPath = Join-Path -Path $moduleInfo.ModuleBase -ChildPath 'source\private\TeamsCardSchema.json'
 
         $teamsAdaptiveCard = Get-Content -Path $teamsAdaptiveCardPath -Raw | ConvertFrom-Json
 
