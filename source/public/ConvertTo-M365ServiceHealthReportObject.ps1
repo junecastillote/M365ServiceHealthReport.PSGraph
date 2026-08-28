@@ -6,7 +6,7 @@ function ConvertTo-M365ServiceHealthReportObject {
         [PSTypeNameAttribute('Microsoft.Graph.PowerShell.Models.MicrosoftGraphServiceHealthIssue')]
         $InputObject,
 
-        [Parameter(Mandatory)]
+        [Parameter()]
         [string]$OrganizationName,
 
         [Parameter()]
@@ -22,7 +22,16 @@ function ConvertTo-M365ServiceHealthReportObject {
 
         [Parameter()]
         [string]
-        $TeamsCardFileName
+        $TeamsCardFileName,
+
+        # Parameter help description
+        [Parameter()]
+        [switch]
+        $IncludeHealthOverviewHTML,
+
+        [Parameter()]
+        [switch]
+        $IncludeResolvedInOverviewForTesting
     )
 
     begin {
@@ -168,6 +177,12 @@ function ConvertTo-M365ServiceHealthReportObject {
                     '</tr>' +
                     '</table>'
                 )
+
+                if ($IncludeHealthOverviewHTML) {
+                    $html_content.Add(
+                        (New-ServiceHealthOverviewHtml -IncludeResolvedInOverviewForTesting:$IncludeResolvedInOverviewForTesting)
+                    )
+                }
 
                 # $html_content.Add('<hr>')
                 $html_content.Add('<table class="section-table" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th><a id="summary" name="summary">Summary</a></th></tr></table>')

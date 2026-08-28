@@ -173,6 +173,7 @@ function Get-M365ServiceHealthEvent {
 
     $currentRunId = [guid]::NewGuid().Guid
     Write-Debug "Current RunId: $($currentRunId)"
+    Write-Debug "Run Mode: $($PSCmdlet.ParameterSetName.ToString())"
     SayInfo "RunId: $($currentRunId)"
     $now = ([System.DateTime]::Now)
 
@@ -301,10 +302,10 @@ function Get-M365ServiceHealthEvent {
                 $_.LastUpdateContent = $_.Posts[-1].Description.Content
             }
 
-            # $issue_collection | Add-Member -MemberType NoteProperty -Name OrganizationName -Value (Get-MgOrganization).DisplayName
             $issue_collection | Add-Member -MemberType NoteProperty -Name ReportStartDate -Value (Get-Date $start_date).ToUniversalTime()
             $issue_collection | Add-Member -MemberType NoteProperty -Name ReportGeneratedDate -Value $now.ToUniversalTime()
             $issue_collection | Add-Member -MemberType NoteProperty -Name RunId -Value $currentRunId
+            $issue_collection | Add-Member -MemberType NoteProperty -Name RunMode -Value $PSCmdlet.ParameterSetName.ToString()
 
             WriteToHistoryFile OK "Count: $($issue_collection.Count)"
             Write-Debug "Event count: $($issue_collection.Count)"
