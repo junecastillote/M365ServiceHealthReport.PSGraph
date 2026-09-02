@@ -192,3 +192,114 @@ function Format-ServiceHealthDuration {
 
     return '{0} hours {1} minutes' -f $TimeSpan.Hours, $TimeSpan.Minutes
 }
+
+function Get-ServiceHealthSummaryDescription {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [ValidateNotNull()]
+        $RetrievalContext
+    )
+
+    $scopeParts = [System.Collections.Generic.List[string]]::new()
+
+    switch ($RetrievalContext.RunMode) {
+        'Id' {
+            $scopeParts.Add(
+                'the Microsoft 365 service health issue with ID ' +
+                $RetrievalContext.Id
+            )
+        }
+
+        'PastDays' {
+            $dayLabel = if ($RetrievalContext.PastDays -eq 1) {
+                'day'
+            }
+            else {
+                'days'
+            }
+
+            $scopeParts.Add(
+                'issues updated during the past ' +
+                $RetrievalContext.PastDays +
+                ' ' +
+                $dayLabel
+            )
+        }
+
+        'LastModifiedDateTime' {
+            $formattedDate = Format-ServiceHealthDate `
+                -DateTime $RetrievalContext.LastModifiedDateTime
+
+            $scopeParts.Add(
+                'issues updated on or after ' + $formattedDate
+            )
+        }
+
+        'StartFromLastSuccessfulRun' {
+            $formattedDate = Format-ServiceHealthDate `
+                -DateTime $RetrievalContext.StartDate
+
+            $scopeParts.Add(
+                'issues updated since the last successful report run on ' +
+                $formattedDate
+            )
+        }
+
+        'StartFromRunId' {
+            $formattedDate = Format-ServiceHealthDate `
+                -DateTime $RetrievalContext.StartDate
+
+            $scopeParts.Add(
+                'issues updated since report run ' +
+                $RetrievalContext.StartFromRunId +
+                ' on ' +
+                $formattedDate
+            )
+        }
+
+        default {
+            $scopeParts.Add(
+                'Microsoft 365 service health issues available in your tenant'
+            )
+        }
+    }
+
+    if ($RetrievalContext.RunMode -ne 'Id') {
+        switch ($RetrievalContext.Status) {
+            'Unresolved' {
+                $scopeParts.Add('that are currently active')
+            }
+
+            'Resolved' {
+                $scopeParts.Add('that have been resolved')
+            }
+        }
+
+        switch ($RetrievalContext.Classification) {
+            'Incident' {
+                $scopeParts.Add('and are classified as incidents')
+            }
+
+            'Advisory' {
+                $scopeParts.Add('and are classified as advisories')
+            }
+        }
+
+        if (@($RetrievalContext.Service).Count -eq 1) {
+            $scopeParts.Add(
+                'for ' + ($RetrievalContext.Service)
+            )
+        }
+        elseif (@($RetrievalContext.Service).Count -gt 1) {
+            $scopeParts.Add(
+                'for the selected services: ' +
+                ($RetrievalContext.Service -join ', ')
+            )
+        }
+    }
+
+    $scopeText = $scopeParts -join ' '
+
+    return 'This section shows ' + $scopeText + '.'
+}

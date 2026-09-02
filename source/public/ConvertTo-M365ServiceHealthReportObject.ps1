@@ -164,6 +164,38 @@ function ConvertTo-M365ServiceHealthReportObject {
                     'Generated: ' + $reportGeneratedDate + '<br />' +
                     $(if ($reportStartDate) { 'Report Start: ' + $reportStartDate }) +
                     '</div>' +
+                    '</td>' +
+                    '</tr>' +
+                    '</table>'
+                )
+
+                $html_content.Add('<hr>')
+
+                if ($IncludeHealthOverviewHTML) {
+                    $html_content.Add(
+                        (New-ServiceHealthOverviewHtml -IncludeResolvedInOverviewForTesting:$IncludeResolvedInOverviewForTesting)
+                    )
+                }
+
+                $html_content.Add('<hr>')
+                $html_content.Add('<table class="section-table" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th><a id="summary" name="summary">Summary of Issues</a></th></tr></table>')
+
+                $summaryDescription = Get-ServiceHealthSummaryDescription `
+                    -RetrievalContext $issue_collection[0].RetrievalContext
+
+                $html_content.Add(
+                    '<div style="' +
+                    'font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;' +
+                    'font-size:12px;' +
+                    'line-height:18px;' +
+                    'color:#666666;' +
+                    'padding:0 0 10px 0;' +
+                    '">' +
+                    (ConvertTo-HtmlEncodedText -Text $summaryDescription) +
+                    '</div>'
+                )
+
+                $html_content.Add(
                     '<div class="report-header-summary">' +
                     '<strong>Total Events:</strong> ' + $totalIssues + '<br>' +
                     '<strong>Status:</strong> ' +
@@ -172,21 +204,15 @@ function ConvertTo-M365ServiceHealthReportObject {
                     $classificationIconHtml['Incident'] + 'Incidents: ' + $incidentCount +
                     ' &nbsp;|&nbsp; ' +
                     $classificationIconHtml['Advisory'] + 'Advisories: ' + $advisoryCount +
-                    '</div>' +
-                    '</td>' +
-                    '</tr>' +
-                    '</table>'
+                    '</div>'
                 )
 
-                if ($IncludeHealthOverviewHTML) {
-                    $html_content.Add(
-                        (New-ServiceHealthOverviewHtml -IncludeResolvedInOverviewForTesting:$IncludeResolvedInOverviewForTesting)
-                    )
-                }
-
-                # $html_content.Add('<hr>')
-                $html_content.Add('<table class="section-table" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th><a id="summary" name="summary">Summary</a></th></tr></table>')
                 $html_content.Add('<hr>')
+
+                $html_content.Add(
+                    '<table width="100%" cellpadding="0" cellspacing="0" border="0" ' +
+                    'style="width:100%;border-collapse:collapse;">'
+                )
 
                 $html_content.Add('<table class="data-table" width="100%" cellpadding="0" cellspacing="0" border="0">')
 
@@ -245,7 +271,8 @@ function ConvertTo-M365ServiceHealthReportObject {
                 }
                 $html_content.Add('</table>')
 
-                $html_content.Add('<table class="section-table" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th><a id="issues" name="issues">Issues</a></th></tr></table>')
+                $html_content.Add('<hr>')
+                $html_content.Add('<table class="section-table" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><th><a id="issues" name="issues">Issue Details</a></th></tr></table>')
                 $html_content.Add('<hr>')
 
                 # Individual issues table
@@ -429,6 +456,7 @@ function ConvertTo-M365ServiceHealthReportObject {
             $result = [PSCustomObject]([ordered]@{
                     PSTypeName          = 'M365ServiceHealthReport'
                     RunId               = $issue_collection[0].RunId
+                    RetrievalContext    = $issue_collection[0].RetrievalContext
                     OrganizationName    = $OrganizationName
                     Title               = $report_title
                     ReportGeneratedDate = $issue_collection[0].ReportGeneratedDate
@@ -439,6 +467,8 @@ function ConvertTo-M365ServiceHealthReportObject {
                     TeamsCardFileName   = $(if ($teams_card_report_file) { $teams_card_report_file } else { 'None' })
                     TeamsCardContent    = $(if ($teams_card_content) { $teams_card_content } else { 'None' })
                 })
+
+
 
             # Script method to get issue summary
             $result | Add-Member -MemberType ScriptMethod -Name GetSummary -Value {

@@ -30,17 +30,11 @@ function New-ServiceHealthOverviewHtml {
 
     $columnsPerRow = 6
 
-    $tileColors = @{
+    $tileTextColors = @{
         Operational = '#5B8E2D'
         Advisory    = '#CA5010'
         Incident    = '#D13438'
     }
-
-    # $tileIcons = @{
-    #     Operational = '✔'
-    #     Advisory    = '⚠'
-    #     Incident    = '⛔'
-    # }
 
     $moduleInfo = Get-Module $MyInvocation.MyCommand.ModuleName
 
@@ -78,22 +72,22 @@ function New-ServiceHealthOverviewHtml {
 
     $tileIcons = @{
         Operational = (
-            '<img' +
+            $imgTagStart +
             ' src="' + $resolvedDataUri + '"' +
             ' alt="Operational"' +
             ' width="18"' +
             ' height="18"' +
             ' style="vertical-align:top;"' +
-            '>'
+            $imgTagEnd
         )
         Advisory    = (
-            '<img' +
+            $imgTagStart +
             ' src="' + $advisoryDataUri + '"' +
             ' alt="Advisory"' +
             ' width="18"' +
             ' height="18"' +
             ' style="vertical-align:top;"' +
-            '>'
+            $imgTagEnd
         )
         Incident    = (
             $imgTagStart +
@@ -230,8 +224,8 @@ function New-ServiceHealthOverviewHtml {
     $html.Add('<hr>')
 
     $html.Add(
-        '<table width="100%" cellpadding="2" cellspacing="0" border="0" ' +
-        'style="width:100%;border-collapse:separate;">'
+        '<table width="100%" cellpadding="0" cellspacing="0" border="0" ' +
+        'style="width:100%;border-collapse:collapse;">'
     )
 
     $column = 0
@@ -241,7 +235,7 @@ function New-ServiceHealthOverviewHtml {
             $html.Add('<tr>')
         }
 
-        $backgroundColor = $tileColors[$service.State]
+        $textColor = $tileTextColors[$service.State]
         $icon = $tileIcons[$service.State]
 
         $detailLines = [System.Collections.Generic.List[string]]::new()
@@ -300,8 +294,8 @@ function New-ServiceHealthOverviewHtml {
         $html.Add(
             '<td width="' + $tileWidth + '%" valign="top" ' +
             'style="' +
-            'background-color:' + $backgroundColor + ';' +
-            'border:1px solid #FFFFFF;' +
+            'background-color:#F8F8F8;' +
+            'border:1px solid #DDDDDD;' +
             'padding:10px;' +
             'height:90px;' +
             '">' +
@@ -310,7 +304,7 @@ function New-ServiceHealthOverviewHtml {
             'font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;' +
             'font-size:18px;' +
             'line-height:22px;' +
-            'color:#FFFFFF;' +
+            'height:22px;' +
             '">' +
             $icon +
             '</div>' +
@@ -320,7 +314,7 @@ function New-ServiceHealthOverviewHtml {
             'font-size:15px;' +
             'line-height:20px;' +
             'font-weight:bold;' +
-            'color:#FFFFFF;' +
+            'color:#242424;' +
             'padding-top:4px;' +
             '">' +
             $serviceName +
@@ -330,7 +324,7 @@ function New-ServiceHealthOverviewHtml {
             'font-family:Aptos,Calibri,''Segoe UI'',Arial,sans-serif;' +
             'font-size:12px;' +
             'line-height:16px;' +
-            'color:#FFFFFF;' +
+            'color:' + $textColor + ';' +
             'padding-top:8px;' +
             '">' +
             $detailText +

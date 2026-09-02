@@ -100,7 +100,18 @@ function Get-M365ServiceHealthEvent {
 
         if ($RunHistoryFileName) {
             CreateHistoryFile
-            [datetime](Import-Csv $RunHistoryFileName | Where-Object { $_.RunId -eq $($StartFromRunId) }).RunTime
+
+            $historyEntry = Import-Csv -Path $RunHistoryFileName |
+            Where-Object {
+                $_.RunId -eq $StartFromRunId
+            } |
+            Select-Object -First 1
+
+            if (!$historyEntry) {
+                return
+            }
+
+            return [datetime]$historyEntry.RunTime
         }
     }
 
@@ -212,7 +223,7 @@ function Get-M365ServiceHealthEvent {
 
     # Add StartFromRunId filter
     if ($PSBoundParameters.ContainsKey('StartFromRunId')) {
-        $StartFromRunId = $StartFromRunId
+        # $StartFromRunId = $StartFromRunId
         # Write-Debug "OldRunId: $($StartFromRunId)"
         Write-Debug "Finding runtime by RunId [$($StartFromRunId)]"
         $LastUpdatedTime = GetRunTimeByRunId
@@ -222,7 +233,7 @@ function Get-M365ServiceHealthEvent {
         }
         $start_date = ($LastUpdatedTime).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:00Z')
         $filter += "LastModifiedDateTime ge $($start_date)"
-        Write-Debug "Filter (StartFromLastSuccessfulRun) - $start_date"
+        Write-Debug "Filter (StartFromRunId) - $start_date"
     }
 
     # Add Classification filter
@@ -273,6 +284,53 @@ function Get-M365ServiceHealthEvent {
         Write-Debug "Filter (Service) - $($included_service_list -join ",")"
     }
 
+    $retrievalContext = [PSCustomObject][ordered]@{
+        RunMode              = $PSCmdlet.ParameterSetName
+        Id                   = if ($PSBoundParameters.ContainsKey('Id')) {
+            $Id
+        }
+        else {
+            $null
+        }
+        PastDays             = if ($PSBoundParameters.ContainsKey('PastDays')) {
+            $PastDays
+        }
+        else {
+            $null
+        }
+        LastModifiedDateTime = if ($PSBoundParameters.ContainsKey('LastModifiedDateTime')) {
+            $LastModifiedDateTime.ToUniversalTime()
+        }
+        else {
+            $null
+        }
+        StartFromRunId       = if ($PSBoundParameters.ContainsKey('StartFromRunId')) {
+            $StartFromRunId
+        }
+        else {
+            $null
+        }
+        StartDate            = [datetime]$start_date
+        Status               = if ($PSBoundParameters.ContainsKey('Status')) {
+            $Status
+        }
+        else {
+            $null
+        }
+        Classification       = if ($PSBoundParameters.ContainsKey('Classification')) {
+            $Classification
+        }
+        else {
+            $null
+        }
+        Service              = if ($PSBoundParameters.ContainsKey('Service')) {
+            @($included_service_list)
+        }
+        else {
+            @()
+        }
+    }
+
     try {
         switch ($true) {
             { $filter } {
@@ -306,6 +364,12 @@ function Get-M365ServiceHealthEvent {
             $issue_collection | Add-Member -MemberType NoteProperty -Name ReportGeneratedDate -Value $now.ToUniversalTime()
             $issue_collection | Add-Member -MemberType NoteProperty -Name RunId -Value $currentRunId
             $issue_collection | Add-Member -MemberType NoteProperty -Name RunMode -Value $PSCmdlet.ParameterSetName.ToString()
+            $issue_collection |
+            Add-Member `
+                -MemberType NoteProperty `
+                -Name RetrievalContext `
+                -Value $retrievalContext
+
 
             WriteToHistoryFile OK "Count: $($issue_collection.Count)"
             Write-Debug "Event count: $($issue_collection.Count)"
