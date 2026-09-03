@@ -227,7 +227,9 @@ function Send-M365ServiceHealthReportToTeams {
 
                     $payloadSizeBytes = Get-Utf8ByteCount -Text $payload
 
-                    SayInfo "RunId [$($report.RunId)] - Posting Teams alert card [$payloadIndex/$payloadCount]. Payload size: $payloadSizeBytes bytes."
+                    $payLoadIssueId = (($payload | ConvertFrom-Json).attachments.content.body | Where-Object {$_.type -eq 'FactSet'} | Select-Object -ExpandProperty Id).Substring(1)
+
+                    SayInfo "RunId [$($report.RunId)] | EventId [$($payLoadIssueId)] - Posting Teams alert card [$payloadIndex/$payloadCount]. Payload size: $payloadSizeBytes bytes."
 
                     $params = @{
                         Uri         = $url
